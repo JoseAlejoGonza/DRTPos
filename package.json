@@ -1,0 +1,37 @@
+{
+  "name": "drtpos",
+  "version": "1.0.0",
+  "main": "electron/main.js",
+  "scripts": {
+    "ng:serve": "cd frontend && ng serve",
+    "electron:serve": "cross-env ELECTRON_START_URL=http://localhost:4200 electron ./electron/main.js",
+    "dev": "concurrently \"npm run ng:serve\" \"npm run electron:serve\"",
+    "build:web": "cd frontend && ng build --configuration production",
+    "build:electron": "npm run build:web && electron-builder"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "38.1.0",
+    "electron-builder": "^26.0.12",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.tuempresa.pos",
+    "productName": "POS DRT",
+    "files": [
+      "frontend/dist/frontend/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  }
+}
