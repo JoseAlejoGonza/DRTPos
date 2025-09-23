@@ -35,21 +35,32 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+
 // PRODUCTS
 ipcMain.handle('products:getAll', () => {
-  return db.prepare('SELECT * FROM products').all();
+  return db.getProducts();
 });
 ipcMain.handle('products:add', (e, p) => {
-  const stmt = db.prepare('INSERT INTO products (code,name,price,stock) VALUES (?,?,?,?)');
-  const info = stmt.run(p.code, p.name, p.price, p.stock);
-  return info.lastInsertRowid;
+  return db.addProduct(p);
 });
 ipcMain.handle('products:update', (e, p) => {
-  const stmt = db.prepare('UPDATE products SET code=?, name=?, price=?, stock=? WHERE id=?');
-  return stmt.run(p.code, p.name, p.price, p.stock, p.id);
+  // Actualizar producto incluyendo categoría
+  const stmt = db.db.prepare('UPDATE products SET code=?, name=?, price=?, stock=?, category_id=? WHERE id=?');
+  return stmt.run(p.code, p.name, p.price, p.stock, p.category_id, p.id);
 });
 ipcMain.handle('products:delete', (e, id) => {
-  return db.prepare('DELETE FROM products WHERE id=?').run(id);
+  return db.db.prepare('DELETE FROM products WHERE id=?').run(id);
+});
+
+// CATEGORIES
+ipcMain.handle('categories:getAll', () => {
+  return db.getCategories();
+});
+ipcMain.handle('categories:add', (e, name) => {
+  return db.addCategory(name);
+});
+ipcMain.handle('categories:delete', (e, id) => {
+  return db.deleteCategory(id);
 });
 
 // SALES

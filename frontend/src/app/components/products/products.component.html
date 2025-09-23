@@ -1,0 +1,51 @@
+<div class="container" style="padding:20px;">
+    <button class="btn btn-primary m-3" [routerLink]="['/home']">Volver al menú</button>
+  <h2>POS - Productos</h2>
+  <button type="button" style="float:right;" [routerLink]="['/categories']">Ir a Categorías</button>
+
+  <!-- Formulario -->
+  <form (ngSubmit)="saveProduct()">
+    <label>Nombre:</label>
+    <input [(ngModel)]="product.name" name="name" required />
+
+    <label>Precio:</label>
+    <input type="number" [(ngModel)]="product.price" name="price" required />
+
+    <label>Cantidad:</label>
+    <input type="number" [(ngModel)]="product.quantity" name="quantity" min="1" required />
+
+  <label>Color:</label>
+  <input type="text" [(ngModel)]="product.color" name="color" required placeholder="Ejemplo: verde, rojo, azul" />
+
+    <label>Categoría:</label>
+    <select [(ngModel)]="product.category_id" name="category_id" required>
+      <option [ngValue]="null" disabled selected>Selecciona una categoría</option>
+      <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+    </select>
+
+    <button type="submit">Guardar</button>
+  </form>
+
+  <hr />
+
+  <!-- Listado -->
+  <h3>Productos Guardados</h3>
+  <button (click)="loadProducts()">Refrescar</button>
+  <table border="1" style="margin-top:10px; width:100%;">
+    <tr>
+      <th>Nombre</th>
+      <th>Precio</th>
+      <th>Cantidad</th>
+      <th>Color</th>
+      <th>Acción</th>
+    </tr>
+    <tr *ngFor="let p of products">
+      <td>{{ p.name }}</td>
+      <td>{{ p.price }}</td>
+      <td>{{ p.stock }}</td>
+      <td>{{ p.color }}</td>
+      <td class="actions-style"><button (click)="deleteProduct(p.id)">Borrar</button></td>
+    </tr>
+  </table>
+  <router-outlet></router-outlet>
+</div>

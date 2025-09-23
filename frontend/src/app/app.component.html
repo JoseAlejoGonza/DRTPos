@@ -1,34 +1,3 @@
-<div class="container" style="padding:20px;">
-  <h2>POS - Productos</h2>
-
-  <!-- Formulario -->
-  <form (ngSubmit)="saveProduct()">
-    <label>Nombre:</label>
-    <input [(ngModel)]="product.name" name="name" required />
-
-    <label>Precio:</label>
-    <input type="number" [(ngModel)]="product.price" name="price" required />
-
-    <button type="submit">Guardar</button>
-  </form>
-
-  <hr />
-
-  <!-- Listado -->
-  <h3>Productos Guardados</h3>
-  <button (click)="loadProducts()">Refrescar</button>
-  <table border="1" style="margin-top:10px; width:100%;">
-    <tr>
-      <th>ID</th>
-      <th>Nombre</th>
-      <th>Precio</th>
-      <th>Acción</th>
-    </tr>
-    <tr *ngFor="let p of products">
-      <td>{{ p.id }}</td>
-      <td>{{ p.name }}</td>
-      <td>{{ p.price }}</td>
-      <td class="actions-style"><button (click)="deleteProduct(p.id)">Borrar</button></td>
-    </tr>
-  </table>
-</div>
+<ng-container>
+    <router-outlet></router-outlet>
+</ng-container>

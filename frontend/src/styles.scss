@@ -1,1 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
+$primary: #0d6b88;
+$link-hover-color: darken($primary, 15%);
+$color-hover: darken($primary, 15%);
+
+@import "bootstrap/scss/bootstrap";

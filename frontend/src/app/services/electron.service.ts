@@ -6,16 +6,20 @@ declare global {
 
 @Injectable({ providedIn: 'root' })
 export class ElectronService {
-    isElectron = !!(window && (window as any).api);
-    
-    async getProducts() { 
-        console.log(window.api);
-        return (window as any).api.getProducts(); 
-    }
-    async addProduct(p: any) { return (window as any).api.addProduct(p); }
-    async updateProduct(p: any) { return (window as any).api.updateProduct(p); }
-    async deleteProduct(id: number) { return (window as any).api.deleteProduct(id); }
-    
-    async createSale(sale: any) { return (window as any).api.createSale(sale); }
-    async printTicket(sale: any) { return (window as any).api.printTicket(sale); }
+  isElectron = !!(window && (window as any).api);
+  
+  async getProducts() { 
+      console.log(window.api);
+      return (window as any).api.getProducts(); 
+  }
+  async addProduct(p: any) { return (window as any).api.addProduct(p); }
+  async updateProduct(p: any) { return (window as any).api.updateProduct(p); }
+  async deleteProduct(id: number) { return (window as any).api.deleteProduct(id); }
+  
+  async createSale(sale: any) { return (window as any).api.createSale(sale); }
+  async printTicket(sale: any) { return (window as any).api.printTicket(sale); }
+
+  async getCategories() { return (window as any).api.getCategories(); }
+  async addCategory(name: string) { return (window as any).api.addCategory(name); }
+  async deleteCategory(id: number) { return (window as any).api.deleteCategory(id); }
 }

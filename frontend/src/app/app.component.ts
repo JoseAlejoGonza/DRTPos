@@ -1,8 +1,7 @@
-import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { RouterOutlet } from '@angular/router';
-import { ElectronService } from './services/electron.service';
+import { Component, OnInit } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
+import { ProductsComponent } from './components/products/products.component';
+import { HomeComponent } from "./components/home/home.component";
 
 declare global {
   interface Window { api: any; }
@@ -10,48 +9,17 @@ declare global {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, FormsModule],
+  imports: [RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 
-export class AppComponent {
-  title = 'frontend';
-  product = { name: '', price: 0 };
-  products: any[] = [];
+export class AppComponent implements OnInit {
+  title = 'DRT Solutions POS';
 
-  constructor(private electronService: ElectronService) {}
+  constructor(private router: Router) {}
 
-  async saveProduct() {
-    if (!this.product.name || this.product.price <= 0) {
-      alert('Nombre y precio son obligatorios');
-      return;
-    }
-
-    this.electronService.addProduct({
-      name: this.product.name,
-      price: this.product.price
-    }).then((res: any) => {
-      console.log('Producto guardado', res);
-    });
-    this.product = { name: '', price: 0 };
-    this.loadProducts();
-  }
-
-  async loadProducts() {
-    this.electronService.getProducts().then((products: any) => {
-      this.products = products;
-    });
-  }
-
-  async deleteProduct(id:any){
-    this.electronService.deleteProduct(id).then(()=>{
-      console.log('se borró');
-      this.loadProducts();
-    })
-  }
-
-  ngOnInit() {
-    this.loadProducts();
+  ngOnInit(): void {
+    this.router.navigate(['/home']);
   }
 }

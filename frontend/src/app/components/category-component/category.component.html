@@ -1,0 +1,20 @@
+<div class="category-container" style="padding:20px;">
+  <button type="button" style="float:right; margin-bottom:10px;" [routerLink]="['/products']">Volver a Productos</button>
+  <h2>Categorías</h2>
+  <form (ngSubmit)="addCategory()" style="margin-bottom:10px;">
+    <input [(ngModel)]="newCategory" name="categoryName" placeholder="Nombre de la categoría" required />
+    <button type="submit">Agregar</button>
+  </form>
+  <table border="1" style="width:100%;">
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Acción</th>
+    </tr>
+    <tr *ngFor="let c of categories">
+      <td>{{ c.id }}</td>
+      <td>{{ c.name }}</td>
+      <td><button (click)="deleteCategory(c.id)">Eliminar</button></td>
+    </tr>
+  </table>
+</div>
