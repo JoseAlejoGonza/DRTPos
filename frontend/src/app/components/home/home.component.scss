@@ -5,3 +5,28 @@
     background-color: darken(#0d6b88, 15%);
     color: white;
 }
+.left-space-menu{
+    width: 200px;
+}
+.left-space-margin{
+    margin-left: 200px;
+}
+.svg-cube-hover .cube-svg-hover {
+  display: none;
+}
+.svg-cube-hover:hover .cube-svg-default {
+  display: none;
+}
+.svg-cube-hover:hover .cube-svg-hover {
+  display: inline;
+}
+.svg-cube-hover.svg-cube-hover-active .cube-svg-default {
+  display: none;
+}
+.svg-cube-hover.svg-cube-hover-active .cube-svg-hover {
+  display: inline;
+}
+.svg-cube-hover.svg-cube-hover-active {
+  background-color: darken(#0d6b88, 15%);
+  color: white;
+}

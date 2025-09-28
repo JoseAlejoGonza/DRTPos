@@ -3,18 +3,20 @@ import { ElectronService } from '../../services/electron.service';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { AddProductsComponent } from '../add-products/add-products.component';
 
 @Component({
   selector: 'app-products',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterOutlet],
+  imports: [CommonModule, FormsModule, RouterLink, RouterOutlet, AddProductsComponent],
   templateUrl: './products.component.html',
   styleUrl: './products.component.scss'
 })
 export class ProductsComponent {
-product = { name: '', price: 0, quantity: 1, color: '', category_id: null };
   products: any[] = [];
   categories: any[] = [];
+  formVisible: boolean = false;
+  selectedProduct: any = null;
 
   constructor(private electronService: ElectronService) {}
 
@@ -27,24 +29,6 @@ product = { name: '', price: 0, quantity: 1, color: '', category_id: null };
     this.categories = await this.electronService.getCategories();
   }
 
-  async saveProduct() {
-    if (!this.product.name || this.product.price <= 0 || this.product.quantity < 1 || !this.product.category_id || !this.product.color) {
-      alert('Nombre, precio, cantidad, color y categoría son obligatorios');
-      return;
-    }
-    this.electronService.addProduct({
-      name: this.product.name,
-      price: this.product.price,
-      quantity: this.product.quantity,
-      color: this.product.color,
-      category_id: this.product.category_id
-    }).then((res: any) => {
-      console.log('Producto guardado', res);
-    });
-    this.product = { name: '', price: 0, quantity: 1, color: '', category_id: null };
-    this.loadProducts();
-  }
-
   async loadProducts() {
     this.electronService.getProducts().then((products: any) => {
       this.products = products;
@@ -55,5 +39,21 @@ product = { name: '', price: 0, quantity: 1, color: '', category_id: null };
     this.electronService.deleteProduct(id).then(() => {
       this.loadProducts();
     });
+  }
+
+  editProduct(productId: number) {
+    const product = this.products.find(p => p.id === productId);
+    this.selectedProduct = { ...product };
+    this.formVisible = true;
+  }
+
+  addProduct(show: boolean) {
+    this.formVisible = show;
+  }
+
+  onProductSaved() {
+    this.formVisible = false;
+    this.selectedProduct = null;
+    this.loadProducts(); // Refresca la tabla con los datos actualizados
   }
 }

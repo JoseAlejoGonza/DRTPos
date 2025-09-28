@@ -1,20 +1,28 @@
-import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [],
+  imports: [RouterOutlet, CommonModule],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit{
   shopName: string = 'DRT';
 
-  constructor(private router: Router) {}
+  constructor(public router: Router) {}
+
+  ngOnInit(): void {
+    this.router.navigate(['/products']);
+  }
 
   navigateTo(route: string) {
     this.router.navigate([`/${route}`]);
   }
 
+  isActive(route: string): boolean {
+    return this.router.url.startsWith(route);
+  }
 }
