@@ -1,0 +1,34 @@
+<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);" *ngIf="visible">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar Producto</h5>
+        <button type="button" class="btn-close" (click)="close()"></button>
+      </div>
+      <div class="modal-body">
+        <form class="mb-3" (ngSubmit)="saveProduct()">
+            <label class="form-label">Nombre:</label>
+            <input class="form-control" [(ngModel)]="product.name" name="name" required />
+
+            <label class="form-label">Precio:</label>
+            <input class="form-control" type="number" [(ngModel)]="product.price" name="price" required />
+
+            <label class="form-label">Cantidad:</label>
+            <input class="form-control" type="number" [(ngModel)]="product.stock" name="stock" min="1" required />
+
+            <label class="form-label">Color:</label>
+            <input class="form-control" type="text" [(ngModel)]="product.color" name="color" required placeholder="Ejemplo: verde, rojo, azul" />
+
+            <label class="form-label">Categoría:</label>
+            <select class="form-select" [(ngModel)]="product.category_id" name="category_id" required>
+                <option [ngValue]="null" disabled selected>Selecciona una categoría</option>
+                <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+            </select>
+            <div class="text-end">
+                <button class="btn btn-primary mt-3" type="submit">Guardar</button>
+            </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

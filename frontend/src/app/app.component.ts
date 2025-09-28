@@ -9,17 +9,13 @@ declare global {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, HomeComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 
-export class AppComponent implements OnInit {
+export class AppComponent {
   title = 'DRT Solutions POS';
 
-  constructor(private router: Router) {}
-
-  ngOnInit(): void {
-    this.router.navigate(['/home']);
-  }
+  constructor() {}
 }

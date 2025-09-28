@@ -1,16 +1,54 @@
 <ng-container>
-    <div class="text-primary text-center fw-bold fs-4">Bienvenido a {{ shopName }} POS</div>
-    <div class="container px-4 text-center">
-        <div class="row gx-5">
-            <div class="col border border-primary rounded m-3 pointer" (click)="navigateTo('products')">
-                <div class="p-3">Productos</div>
-            </div>
-            <div class="col border border-primary bg-light rounded m-3">
-                <div class="p-3">Custom column padding</div>
-            </div>
+    <div class="position-fixed top-0 start-0 h-100 bg-white border-end border-primary p-3 left-space-menu">
+      <div class="border border-primary rounded pointer mb-3 p-3 position-relative svg-cube-hover text-menu" 
+      (click)="navigateTo('products')" [ngClass]="{'svg-cube-hover-active': isActive('/products')}">
+        <div class="w-100 text-center mb-2">
+
+            <svg class="cube-svg cube-svg-default" width="100" height="100" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="100,100 180,60 180,140 100,180" 
+                    stroke="#0d6b88" stroke-width="10" fill="transparent" stroke-linejoin="round"/>
+                <polygon points="100,100 20,60 20,140 100,180" 
+                    stroke="#0d6b88" stroke-width="10" fill="transparent" stroke-linejoin="round"/>
+                <polygon points="100,20 180,60 100,100 20,60" 
+                    fill="transparent" stroke="#0d6b88" stroke-width="10" stroke-linejoin="round"/>
+            </svg>
+
+            <svg class="cube-svg cube-svg-hover" width="100" height="100" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="100,100 180,60 180,140 100,180" 
+                        stroke="white" stroke-width="10" fill="transparent" stroke-linejoin="round"/>
+                    <polygon points="100,100 20,60 20,140 100,180" 
+                        stroke="white" stroke-width="10" fill="transparent" stroke-linejoin="round"/>
+                    <polygon points="100,20 180,60 100,100 20,60" 
+                        fill="transparent" stroke="white" stroke-width="10" stroke-linejoin="round"/>
+            </svg>
         </div>
+        <div class="text-center fs-4 fw-bold">Inventario</div>
+      </div>
+      <div class="border border-primary rounded pointer mb-3 p-3 position-relative svg-cube-hover text-menu" 
+      (click)="navigateTo('shop')" [ngClass]="{'svg-cube-hover-active': isActive('/shop')}">
+        <div class="w-100 text-center mb-2">
+            <svg class="cube-svg cube-svg-default" width="100" height="100" viewBox="0 0 50 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g stroke="#0d6b88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="17" cy="39" r="2"/>
+                    <circle cx="35" cy="39" r="2"/>
+                    <path d="M3 7h5l6 24h22l6-16H12"/>
+                </g>
+            </svg>
+            <svg class="cube-svg cube-svg-hover" width="100" height="100" viewBox="0 0 50 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="17" cy="39" r="2"/>
+                    <circle cx="35" cy="39" r="2"/>
+                    <path d="M3 7h5l6 24h22l6-16H12"/>
+                </g>
+            </svg>
+        </div>
+        <div class="text-center fs-4 fw-bold">Ventas</div>
+      </div>
+      <!-- Puedes agregar más tarjetas aquí -->
     </div>
-    <button class="btn btn-primary m-3">Reportes</button>
-    <button class="btn btn-secondary m-3">Respaldo</button>
+    <div class="left-space-margin pt-4">
+        <div class="text-primary text-center fw-bold fs-2">Bienvenido a {{ shopName }} POS</div>
+        <router-outlet></router-outlet>
+    </div>
 
 </ng-container>

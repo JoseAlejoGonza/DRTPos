@@ -36,7 +36,7 @@ db.prepare(`CREATE TABLE IF NOT EXISTS sales (
 function addProduct(product) {
   // Guarda la cantidad, color y la categoría
   return db.prepare('INSERT INTO products (name, price, stock, color, category_id) VALUES (?, ?, ?, ?, ?)')
-    .run(product.name, product.price, product.quantity, product.color || '', product.category_id || null);
+    .run(product.name, product.price, product.stock, product.color || '', product.category_id || null);
 }
 
 
@@ -57,11 +57,28 @@ function deleteCategory(id) {
   return db.prepare('DELETE FROM categories WHERE id = ?').run(id);
 }
 
+function updateProduct(product) {
+  // Actualiza el producto por id
+  return db.prepare(`
+    UPDATE products
+    SET name = ?, price = ?, stock = ?, color = ?, category_id = ?
+    WHERE id = ?
+  `).run(
+    product.name,
+    product.price,
+    product.quantity, // Asegúrate que sea 'stock' y no 'quantity'
+    product.color || '',
+    product.category_id || null,
+    product.id
+  );
+}
+
 module.exports = {
   addProduct,
   getProducts,
   addCategory,
   getCategories,
   deleteCategory,
+  updateProduct,
   db
 };
