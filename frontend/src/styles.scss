@@ -4,6 +4,7 @@ $link-hover-color: darken($primary, 15%);
 $color-hover: darken($primary, 15%);
 $action-color-edit: #06be59; // Amarillo para editar
 $action-color-delete: #b31524; // Rojo para eliminar
+$text-neutral: #dddd;
 
 
 @import "bootstrap/scss/bootstrap";
@@ -28,10 +29,13 @@ $action-color-delete: #b31524; // Rojo para eliminar
   }
 }
 .text-menu{
-    color: $primary;
+    color: $text-neutral;
     font-weight: bold;
     text-decoration: none;
 }
 .text-menu:hover{
     color: white;
+}
+.color-menu{
+    background: linear-gradient(to top, $primary, $link-hover-color);
 }

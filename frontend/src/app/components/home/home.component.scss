@@ -30,3 +30,9 @@
   background-color: darken(#0d6b88, 15%);
   color: white;
 }
+.svg-cube-hover.svg-cube-hover-active {
+  border-color: white !important;
+}
+.svg-cube-hover.pointer:hover {
+  border-color: white !important;
+}
