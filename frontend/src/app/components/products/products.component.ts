@@ -32,6 +32,7 @@ export class ProductsComponent {
   async loadProducts() {
     this.electronService.getProducts().then((products: any) => {
       this.products = products;
+      console.log(this.products);
     });
   }
 

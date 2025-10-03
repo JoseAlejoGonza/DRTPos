@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const db = require('./db');
 const isDev = !!process.env.ELECTRON_START_URL;
@@ -11,7 +11,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, './preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: false
     }
   });
 
@@ -64,11 +65,43 @@ ipcMain.handle('categories:delete', (e, id) => {
 });
 
 // SALES
-ipcMain.handle('sale:create', (e, sale) => {
-  const stmt = db.prepare('INSERT INTO sales (date, total, payload) VALUES (?, ?, ?)');
-  const info = stmt.run(new Date().toISOString(), sale.total, JSON.stringify(sale));
-  return info.lastInsertRowid;
-});
-ipcMain.handle('sale:get', (e, {from,to}) => {
-  return db.prepare('SELECT * FROM sales WHERE date BETWEEN ? AND ?').all(from, to);
+// ipcMain.handle('sale:create', (e, sale) => {
+//   const stmt = db.prepare('INSERT INTO sales (date, total, payload) VALUES (?, ?, ?)');
+//   const info = stmt.run(new Date().toISOString(), sale.total, JSON.stringify(sale));
+//   return info.lastInsertRowid;
+// });
+// ipcMain.handle('sale:get', (e, {from,to}) => {
+//   return db.prepare('SELECT * FROM sales WHERE date BETWEEN ? AND ?').all(from, to);
+// });
+// CLIENTS
+ipcMain.handle('clients:getAll', () => db.getClients());
+ipcMain.handle('clients:add', (e, client) => db.addClient(client));
+ipcMain.handle('clients:update', (e, client) => db.updateClient(client));
+ipcMain.handle('clients:delete', (e, id) => db.deleteClient(id));
+
+// INVOICES
+ipcMain.handle('invoices:getAll', () => db.getInvoices());
+ipcMain.handle('invoices:add', (e, invoice) => db.addInvoice(invoice));
+ipcMain.handle('invoices:updateStatus', (e, {id, status}) => db.updateInvoiceStatus(id, status));
+ipcMain.handle('invoices:delete', (e, id) => db.deleteInvoice(id));
+
+// SALES
+ipcMain.handle('sales:getAll', () => db.getSales());
+ipcMain.handle('sales:add', (e, sale) => db.addSale(sale));
+
+// DETAIL SALES
+ipcMain.handle('detailSales:getAll', () => db.getDetailSales());
+ipcMain.handle('detailSales:add', (e, detail) => db.addDetailSale(detail));
+ipcMain.handle('open-image-dialog', async (event) => {
+    const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] }]
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+        return null; // El usuario canceló
+    }
+    
+    // Devuelve la ruta real (siempre la primera, ya que solo permitimos un archivo)
+    return result.filePaths[0]; 
 });
