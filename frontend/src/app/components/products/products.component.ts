@@ -17,6 +17,7 @@ export class ProductsComponent {
   categories: any[] = [];
   formVisible: boolean = false;
   selectedProduct: any = null;
+  titleModal: string = '';
 
   constructor(private electronService: ElectronService) {}
 
@@ -43,12 +44,15 @@ export class ProductsComponent {
   }
 
   editProduct(productId: number) {
+    this.titleModal = 'Editar producto';
     const product = this.products.find(p => p.id === productId);
     this.selectedProduct = { ...product };
     this.formVisible = true;
   }
 
   addProduct(show: boolean) {
+    this.selectedProduct = null;
+    this.titleModal = 'Agregar producto';
     this.formVisible = show;
   }
 

@@ -15,7 +15,7 @@ db.prepare(`CREATE TABLE IF NOT EXISTS categories (
 
 
 
-// Tabla de productos con columna imagen
+// Tabla de productos con columna imagen como TEXT (acepta ruta o URL)
 db.prepare(`CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   code TEXT,
@@ -23,15 +23,30 @@ db.prepare(`CREATE TABLE IF NOT EXISTS products (
   price REAL,
   stock INTEGER,
   color TEXT,
-  imagen BLOB,
+  imagen TEXT,
   category_id INTEGER,
   FOREIGN KEY (category_id) REFERENCES categories(id)
 )`).run();
 
-// Si la columna imagen no existe, agregarla (migración)
+// Si la columna imagen existe y es BLOB, migrar a TEXT (solo si es necesario)
 const productCols = db.prepare("PRAGMA table_info(products)").all();
-if (!productCols.some(col => col.name === 'imagen')) {
-  db.prepare('ALTER TABLE products ADD COLUMN imagen BLOB').run();
+const imagenCol = productCols.find(col => col.name === 'imagen');
+if (imagenCol && imagenCol.type !== 'TEXT') {
+  // Migración manual: crear nueva columna, copiar datos, eliminar la vieja, renombrar
+  db.prepare('ALTER TABLE products RENAME TO products_old').run();
+  db.prepare(`CREATE TABLE products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT,
+    name TEXT,
+    price REAL,
+    stock INTEGER,
+    color TEXT,
+    imagen TEXT,
+    category_id INTEGER,
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+  )`).run();
+  db.prepare('INSERT INTO products (id, code, name, price, stock, color, imagen, category_id) SELECT id, code, name, price, stock, color, NULL, category_id FROM products_old').run();
+  db.prepare('DROP TABLE products_old').run();
 }
 
 db.prepare(`CREATE TABLE IF NOT EXISTS sales (
@@ -139,17 +154,7 @@ function deleteClient(id) {
 }
 
 function addProduct(product) {
-  // Guarda la cantidad, color y la categoría
-  // let imagenBlob = null;
-  // if (product.image && fs.existsSync(product.image)) {
-  //   try {
-  //       imagenBlob = fs.readFileSync(product.image);
-  //       console.log('Imagen convertida a Buffer (BLOB).');
-  //   } catch (e) {
-  //       console.error('Error al leer el archivo para BLOB:', e);
-  //       // Si hay error de lectura, sigue con imagenBlob = null
-  //   }
-  // }
+  // Guarda la ruta local o URL como texto
   return db.prepare('INSERT INTO products (imagen, name, price, stock, color, category_id) VALUES (?, ?, ?, ?, ?, ?)')
     .run(product.image, product.name, product.price, product.stock, product.color || '', product.category_id || null);
 }
@@ -172,29 +177,17 @@ function deleteCategory(id) {
 }
 
 function updateProduct(product) {
-  // Actualiza el producto por id
-  img_blob = convertir_a_blob(product.image);
-  let imagenBlob = null;
-  if (product.image && fs.existsSync(product.image)) {
-    try {
-        // 2. LEER el contenido binario del archivo
-        //    fs.readFileSync() devuelve un objeto Buffer, que es el BLOB
-        imagenBlob = fs.readFileSync(product.image);
-        console.log('Imagen convertida a Buffer (BLOB).');
-    } catch (e) {
-        console.error('Error al leer el archivo para BLOB:', e);
-        // Si hay error de lectura, sigue con imagenBlob = null
-    }
-  }
+  // Actualiza la ruta local o URL como texto
+  console.log('Updating product:', product);
   return db.prepare(`
     UPDATE products
     SET imagen = ?, name = ?, price = ?, stock = ?, color = ?, category_id = ?
     WHERE id = ?
   `).run(
-    imagenBlob,
+    product.image,
     product.name,
     product.price,
-    product.quantity, // Asegúrate que sea 'stock' y no 'quantity'
+    product.stock,
     product.color || '',
     product.category_id || null,
     product.id

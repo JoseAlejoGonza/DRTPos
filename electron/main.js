@@ -16,8 +16,6 @@ function createWindow() {
     }
   });
 
-  console.log(isDev, 'esto es isDev');
-
   if (isDev) {
     mainWindow.loadURL(process.env.ELECTRON_START_URL || 'http://localhost:4200');
     mainWindow.webContents.openDevTools();
@@ -46,8 +44,8 @@ ipcMain.handle('products:add', (e, p) => {
 });
 ipcMain.handle('products:update', (e, p) => {
   // Actualizar producto incluyendo categoría
-  const stmt = db.db.prepare('UPDATE products SET code=?, name=?, price=?, stock=?, category_id=? WHERE id=?');
-  return stmt.run(p.code, p.name, p.price, p.stock, p.category_id, p.id);
+  const stmt = db.db.prepare('UPDATE products SET imagen=?, code=?, name=?, price=?, stock=?, category_id=? WHERE id=?');
+  return stmt.run(p.image, p.code, p.name, p.price, p.stock, p.category_id, p.id);
 });
 ipcMain.handle('products:delete', (e, id) => {
   return db.db.prepare('DELETE FROM products WHERE id=?').run(id);

@@ -3,6 +3,7 @@
     <app-add-products
       [visible]="formVisible"
       [productInput]="selectedProduct"
+      [title]="titleModal"
       (closed)="formVisible = false"
       (productSaved)="onProductSaved()">
     </app-add-products>

@@ -1,0 +1,19 @@
+/* Grid para tarjetas de productos */
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 1rem;
+}
+
+.shop-card {
+    width: 12rem;
+    min-width: 12rem;
+    max-width: 12rem;
+}
+.right-space-margin{
+    margin-right: 300px;
+}
+.right-space-menu{
+    width: 300px;
+    background-color: #eceaea;
+}

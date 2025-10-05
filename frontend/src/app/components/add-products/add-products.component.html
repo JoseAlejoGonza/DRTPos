@@ -2,14 +2,28 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Agregar Producto</h5>
+        <h5 class="modal-title">{{ title }}</h5>
         <button type="button" class="btn-close" (click)="close()"></button>
       </div>
       <div class="modal-body">
         <form class="mb-3" (ngSubmit)="saveProduct()">
+
           <label class="form-label">Imagen de referencia:</label>
-          <button class="btn btn-secondary" type="button" (click)="openFilePicker()">Seleccionar Imagen</button>
-          <div *ngIf="product.image" class="mt-2">{{ getFileName(product.image) }} seleccionado</div>
+          <div class="mb-2">
+            <button class="btn btn-secondary me-2" type="button" (click)="openFilePicker()">Seleccionar Imagen</button>
+            <span *ngIf="product.image && !isUrl(product.image)">{{ getFileName(product.image) }} seleccionado</span>
+          </div>
+          <div class="mb-2">
+            <input class="form-control" type="text" placeholder="O pega una URL de imagen (http...)"
+              [(ngModel)]="product.image"
+              (ngModelChange)="onImageInputChange($event)"
+              name="imageUrl" />
+            <span *ngIf="product.image && isUrl(product.image)">URL seleccionada</span>
+          </div>
+
+          <div *ngIf="getImagePreview()" class="mb-2">
+            <img [src]="getImagePreview()" alt="Vista previa" style="max-width:100px;max-height:100px; border:1px solid #ccc; border-radius:4px;" />
+          </div>
 
           <label class="form-label">Nombre:</label>
           <input class="form-control" [(ngModel)]="product.name" name="name" required />

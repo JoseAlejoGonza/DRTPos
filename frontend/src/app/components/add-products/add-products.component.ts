@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Output, EventEmitter, Input, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, Input, OnInit, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
 
@@ -13,6 +13,7 @@ import { ElectronService } from '../../services/electron.service';
 export class AddProductsComponent implements OnInit {
   @Input() visible = false;
   @Input() productInput: any = null;
+  @Input() title: string = '';
   @Output() closed = new EventEmitter<void>();
   @Output() productSaved = new EventEmitter<void>();
 
@@ -30,6 +31,23 @@ export class AddProductsComponent implements OnInit {
 
   constructor(private electronService: ElectronService) {}
 
+  onImageInputChange(value: string) {
+    this.product.image = value;
+    this.onImageUrlInput();
+  }
+
+  // Determina si la imagen es una URL
+  isUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value);
+  }
+
+  // Si el usuario edita el campo de URL, limpia archivoSeleccionado
+  onImageUrlInput() {
+    if (this.isUrl(this.product.image)) {
+      this.archivoSeleccionado = '';
+    }
+  }
+
   async ngOnInit() {
     await this.loadCategories();
   }
@@ -37,16 +55,30 @@ export class AddProductsComponent implements OnInit {
   ngOnChanges() {
     if (this.productInput) {
       this.product = { ...this.productInput };
+      this.product.image = this.productInput.imagen || '';
+      if (this.product.image && this.isUrl(this.product.image)) {
+        // No modificar
+      } else if (this.product.image && !this.product.image.startsWith('file://')) {
+        this.product.image = 'file://' + this.product.image;
+      }
     } else {
       this.product = {
-        image: null,
+        image: '',
         name: '',
         price: null,
         stock: null,
         color: '',
         category_id: null
       };
+      this.archivoSeleccionado = '';
     }
+  }
+
+  getImagePreview(): string | null {
+    if (!this.product.image) return null;
+    if (this.isUrl(this.product.image)) return this.product.image;
+    if (this.product.image.startsWith('file://')) return this.product.image;
+    return 'file://' + this.product.image;
   }
 
   close() {
@@ -59,7 +91,6 @@ export class AddProductsComponent implements OnInit {
     if (filePath) {
       // 2. Si se selecciona un archivo, guarda la ruta real
       this.product.image = filePath; 
-      console.log('Ruta del archivo obtenida por diálogo:', this.product.image);
     }
   }
 
@@ -77,9 +108,15 @@ export class AddProductsComponent implements OnInit {
       this.product.image = this.archivoSeleccionado;
     }
     if (this.product.id) {
+      // Sincronizar imagen editada de vuelta a productInput.imagen si aplica
+      // console.log(this.product, 'esto es antes del if');
+      // if (this.productInput) {
+      //   this.product.image = this.productInput.imagen;
+      // }
+      console.log(this.product, 'esto es despues del if');
+
       await this.electronService.updateProduct(this.product); // Editar producto existente
     } else {
-      console.log(this.product);
       await this.electronService.addProduct(this.product); // Crear producto nuevo
     }
     this.productSaved.emit();

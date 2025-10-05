@@ -24,4 +24,20 @@ export class ShopComponent implements OnInit {
       console.log(this.products);
     });
   }
+  getImageSrc(imagen: string): string {
+    if (!imagen) return '';
+    // Si es URL http/https, retorna tal cual
+    if (/^https?:\/\//i.test(imagen)) return imagen;
+    // Si es ruta local, usa file://
+    return 'file://' + imagen;
+  }
+
+  getTotal(): number {
+    // Aquí puedes implementar la lógica para calcular el total de la compra
+    return 450000;
+  }
+  addToCart(product: any) {
+    // Aquí puedes implementar la lógica para agregar el producto al carrito
+    console.log('Producto agregado al carrito:', product);
+  }
 }
