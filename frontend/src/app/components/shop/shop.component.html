@@ -29,30 +29,93 @@
         </div>
       </div>
    </div>
-   <div class="position-fixed top-0 end-0 h-100 border border-left-primary p-3 right-space-menu" style="width:350px; background:#fff; overflow-y:auto;">
-      <h4 class="text-primary fs-5">Resumen de compra</h4>
-      <div *ngIf="cart.length === 0" class="text-muted mt-3">No hay productos en el carrito.</div>
-      <div *ngFor="let item of cart" class="d-flex align-items-center justify-content-between border-bottom py-2">
-         <div>
-            <div class="fw-bold">{{ item.name }}</div>
-            <div class="text-muted small">{{ item.category_name }}</div>
-            <div class="small">Precio: {{ item.price | currency }}</div>
-            <div class="small">Subtotal: {{ (item.price * item.quantity) | currency }}</div>
-         </div>
-         <div class="d-flex flex-column align-items-end">
-            <input type="number"
-                      [(ngModel)]="item.quantity"
-                      [min]="1"
-                      [max]="item.stock"
-                      (change)="updateCartQuantity(item)"
-                      class="form-control form-control-sm mb-1"
-                      style="width:60px;"/>
-            <span class="small text-muted">Stock: {{ item.stock }}</span>
-            <button class="btn btn-sm btn-danger mt-1" (click)="removeFromCart(item)">Eliminar</button>
-         </div>
-      </div>
-      <div class="position-absolute bottom-30 start-0 w-100 mt-4">
-         <h4 class="text-primary">Total: {{ getTotal() | currency }}</h4>
+   <div class="position-fixed top-0 end-0 h-100 border border-left-primary right-space-menu" style="width:350px; background:#fff;">
+      <div class="cart-container">
+        <!-- Header con botón para nueva pestaña -->
+        <div class="cart-header">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="text-primary fs-5 mb-0">Cotizaciones</h4>
+            <button class="btn btn-sm btn-outline-primary" (click)="createNewTab()" title="Nueva cotización">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Pestañas de navegación -->
+        <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
+          <li class="nav-item" *ngFor="let cartTab of carts; let i = index" role="presentation">
+            <button class="nav-link nav-link-custom" 
+                    [class.active]="cartTab.id === activeTabId"
+                    (click)="setActiveTab(cartTab.id)"
+                    type="button">
+              <span class="tab-name">{{ cartTab.name }}</span>
+              <button class="btn-close-tab" 
+                      (click)="deleteTab(cartTab.id, $event)" 
+                      *ngIf="carts.length > 1"
+                      title="Cerrar pestaña">
+                ×
+              </button>
+            </button>
+          </li>
+        </ul>
+
+        <!-- Contenido de la pestaña activa -->
+        <div class="tab-content">
+          <div class="tab-pane fade show active cart-content">
+            <!-- Lista de productos en el carrito con scroll propio -->
+            <div class="cart-items-container">
+              <div *ngIf="!activeCart || activeCart.items.length === 0" class="text-muted mt-3 text-center">
+                No hay productos en esta cotización.
+              </div>
+              
+              <div *ngFor="let item of activeCart?.items" class="cart-item">
+                <div class="item-info">
+                  <div class="fw-bold item-name">{{ item.name }}</div>
+                  <div class="text-muted small">{{ item.category_name }}</div>
+                  <div class="small">Precio: {{ item.price | currency }}</div>
+                  <div class="small fw-bold">Subtotal: {{ (item.price * item.quantity) | currency }}</div>
+                </div>
+                <div class="item-controls">
+                  <input type="number"
+                        [(ngModel)]="item.quantity"
+                        [min]="1"
+                        [max]="item.stock"
+                        (change)="updateCartQuantity(item)"
+                        class="form-control form-control-sm quantity-input"/>
+                  <span class="small text-muted">Stock: {{ item.stock }}</span>
+                  <button class="btn btn-sm btn-outline-danger remove-btn" 
+                          (click)="removeFromCart(item)">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer fijo con total y botones (fuera del scroll) -->
+        <div class="cart-footer">
+          <div class="total-section">
+            <h5 class="text-primary mb-2">Total: {{ getActiveCartTotal() | currency }}</h5>
+          </div>
+          
+          <div class="action-buttons" *ngIf="activeCart && activeCart.items.length > 0">
+            <button class="btn btn-success btn-sm w-100 mb-2" 
+                    (click)="processPurchase()"
+                    [disabled]="!activeCart || activeCart.items.length === 0">
+              <i class="fas fa-shopping-cart me-1"></i>
+              Procesar Compra
+            </button>
+            <button class="btn btn-outline-secondary btn-sm w-100" 
+                    (click)="cancelCart()">
+              <i class="fas fa-times me-1"></i>
+              Cancelar Cotización
+            </button>
+          </div>
+        </div>
       </div>
    </div>
+
+   <!-- Modal de Métodos de Pago -->
+   <app-payment-methods></app-payment-methods>
 </div>
