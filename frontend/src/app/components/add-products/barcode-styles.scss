@@ -1,0 +1,76 @@
+// Estilos específicos para el campo de código de barras
+.barcode-field {
+  .input-group {
+    .form-control {
+      font-family: 'Courier New', monospace;
+      
+      &:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+    }
+    
+    .btn-outline-secondary {
+      border-color: #6c757d;
+      
+      &:hover {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+      }
+      
+      &.btn-warning {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #212529;
+        
+        &:hover {
+          background-color: #e0a800;
+          border-color: #d39e00;
+        }
+      }
+    }
+  }
+  
+  .form-text {
+    &.text-warning {
+      font-weight: 500;
+      
+      strong {
+        color: #856404;
+      }
+    }
+  }
+}
+
+// Animación para el modo de captura
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.capturing-mode {
+  .form-control {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+    animation: pulse 2s ease-in-out infinite;
+  }
+}
+
+// Estilos para iconos
+.fa-barcode {
+  color: #6c757d;
+}
+
+.fa-scan {
+  color: #28a745;
+}
+
+.fa-spinner {
+  color: #ffc107;
+}
+
+.fa-info-circle {
+  color: #17a2b8;
+}

@@ -51,11 +51,19 @@
           </div>
         </div>
 
-        <!-- Total -->
+        <!-- Total con desglose -->
         <div class="total-section">
+          <div class="subtotal-row">
+            <span class="subtotal-label">Subtotal:</span>
+            <span class="subtotal-amount">{{ subtotal | currency }}</span>
+          </div>
+          <div class="iva-row">
+            <span class="iva-label">IVA (19%):</span>
+            <span class="iva-amount">{{ ivaAmount | currency }}</span>
+          </div>
           <div class="total-row">
             <span class="total-label">TOTAL A PAGAR:</span>
-            <span class="total-amount">{{ purchaseData.total | currency }}</span>
+            <span class="total-amount">{{ total | currency }}</span>
           </div>
         </div>
       </div>
@@ -75,6 +83,162 @@
         <small class="text-muted">
           *La factura electrónica se enviará al correo electrónico registrado
         </small>
+
+        <!-- Búsqueda de Cliente (solo si requiere factura) -->
+        <div class="client-search-section" *ngIf="requiresInvoice">
+          <h6 class="section-subtitle">
+            <i class="fas fa-user me-2"></i>
+            Información del Cliente
+          </h6>
+          
+          <div class="search-form">
+            <div class="row">
+              <div class="col-md-4">
+                <label for="documentType" class="form-label">Tipo de Documento</label>
+                <select class="form-select" 
+                        id="documentType"
+                        [(ngModel)]="selectedDocumentType">
+                  <option *ngFor="let type of documentTypes" [value]="type.value">
+                    {{ type.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="documentNumber" class="form-label">Número de Documento</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="documentNumber"
+                       [(ngModel)]="documentNumber"
+                       placeholder="Ingrese el número de documento"
+                       (keyup.enter)="searchClient()">
+              </div>
+              <div class="col-md-2">
+                <!-- <label class="form-label">&nbsp;</label> -->
+                <button type="button" 
+                        class="btn btn-primary d-block w-100"
+                        (click)="searchClient()"
+                        [disabled]="isSearchingClient || !documentNumber.trim()">
+                  <i class="fas fa-spinner fa-spin me-2" *ngIf="isSearchingClient"></i>
+                  <i class="fas fa-search me-2" *ngIf="!isSearchingClient"></i>
+                  {{ isSearchingClient ? 'Buscando...' : 'Buscar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cliente encontrado -->
+          <div class="client-found" *ngIf="foundClient">
+            <div class="alert alert-success">
+              <h6><i class="fas fa-check-circle me-2"></i>Cliente Encontrado</h6>
+              <div class="client-info">
+                <p><strong>Nombre:</strong> {{ foundClient.name }}</p>
+                <p><strong>Teléfono:</strong> {{ foundClient.phone_number }}</p>
+                <p><strong>Email:</strong> {{ foundClient.email }}</p>
+                <p *ngIf="foundClient.address"><strong>Dirección:</strong> {{ foundClient.address }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cliente no encontrado -->
+          <div class="client-not-found" *ngIf="clientNotFound">
+            <div class="alert alert-warning">
+              <h6><i class="fas fa-exclamation-triangle me-2"></i>Cliente no encontrado</h6>
+              <p>No se encontró un cliente con el documento {{ selectedDocumentType }}: {{ documentNumber }}</p>
+              <button type="button" 
+                      class="btn btn-outline-primary btn-sm"
+                      (click)="openClientForm()">
+                <i class="fas fa-user-plus me-2"></i>
+                Crear Cliente
+              </button>
+            </div>
+          </div>
+
+          <!-- Formulario de creación de cliente -->
+          <div class="client-form-modal" *ngIf="showClientForm">
+            <div class="client-form-content">
+              <div class="form-header">
+                <h6><i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente</h6>
+                <button type="button" 
+                        class="btn-close-form" 
+                        (click)="cancelClientForm()">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              
+              <div class="form-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <label class="form-label">Tipo de Documento *</label>
+                    <select class="form-control" [(ngModel)]="newClient.document_type">
+                      <option *ngFor="let type of documentTypes" [value]="type.value">
+                        {{ type.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Número de Documento *</label>
+                    <input type="text" 
+                           class="form-control" 
+                           [(ngModel)]="newClient.document_number"
+                           placeholder="Número de documento">
+                  </div>
+                </div>
+                
+                <div class="row mt-2">
+                  <div class="col-md-12">
+                    <label class="form-label">Nombre Completo *</label>
+                    <input type="text" 
+                           class="form-control" 
+                           [(ngModel)]="newClient.name"
+                           placeholder="Nombre completo del cliente">
+                  </div>
+                </div>
+                
+                <div class="row mt-2">
+                  <div class="col-md-6">
+                    <label class="form-label">Teléfono *</label>
+                    <input type="text" 
+                           class="form-control" 
+                           [(ngModel)]="newClient.phone_number"
+                           placeholder="Número de teléfono">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Correo Electrónico *</label>
+                    <input type="email" 
+                           class="form-control" 
+                           [(ngModel)]="newClient.email"
+                           placeholder="correo@ejemplo.com">
+                  </div>
+                </div>
+                
+                <div class="row mt-2">
+                  <div class="col-md-12">
+                    <label class="form-label">Dirección (Opcional)</label>
+                    <textarea class="form-control" 
+                              [(ngModel)]="newClient.address"
+                              rows="2"
+                              placeholder="Dirección del cliente"></textarea>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="form-footer">
+                <button type="button" 
+                        class="btn btn-outline-secondary me-2"
+                        (click)="cancelClientForm()">
+                  Cancelar
+                </button>
+                <button type="button" 
+                        class="btn btn-success"
+                        (click)="createClient()"
+                        [disabled]="!newClient.name.trim() || !newClient.phone_number.trim() || !newClient.email.trim()">
+                  <i class="fas fa-save me-2"></i>
+                  Crear Cliente
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Métodos de Pago -->
@@ -109,6 +273,50 @@
             <div *ngSwitchCase="'cash'" class="cash-info">
               <h6><i class="fas fa-money-bill-wave me-2"></i>Pago en Efectivo</h6>
               <p>El cliente pagará en efectivo al momento de la entrega o en punto de venta.</p>
+              
+              <!-- Calculadora de vueltas -->
+              <div class="cash-calculator">
+                <div class="row">
+                  <div class="col-md-6">
+                    <label class="form-label">Total a Pagar:</label>
+                    <input type="text" 
+                           class="form-control" 
+                           [value]="total | currency"
+                           readonly>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Dinero Recibido:</label>
+                    <input type="number" 
+                           class="form-control" 
+                           [(ngModel)]="cashReceived"
+                           (ngModelChange)="onCashReceivedChange()"
+                           placeholder="0"
+                           min="0"
+                           step="50">
+                  </div>
+                </div>
+                
+                <div class="change-result mt-2" *ngIf="cashReceived > 0">
+                  <div class="alert" 
+                       [class.alert-success]="changeAmount >= 0"
+                       [class.alert-danger]="changeAmount < 0">
+                    <div class="row align-items-center">
+                      <div class="col">
+                        <strong>
+                          <span *ngIf="changeAmount >= 0">
+                            <i class="fas fa-hand-holding-usd me-2"></i>
+                            Vueltas: {{ changeAmount | currency }}
+                          </span>
+                          <span *ngIf="changeAmount < 0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Falta: {{ (changeAmount * -1) | currency }}
+                          </span>
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <!-- Tarjeta -->
@@ -147,7 +355,7 @@
       </button>
       <button class="btn btn-success" 
               (click)="confirmPayment()"
-              [disabled]="!selectedPaymentMethod || isProcessing">
+              [disabled]="!selectedPaymentMethod || isProcessing || (requiresInvoice && !foundClient) || (selectedPaymentMethod === 'cash' && cashReceived < total)">
         <i class="fas fa-spinner fa-spin me-2" *ngIf="isProcessing"></i>
         <i class="fas fa-check me-2" *ngIf="!isProcessing"></i>
         {{ isProcessing ? 'Procesando...' : 'Confirmar Pago' }}

@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, Output, EventEmitter, Input, OnInit, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { ElectronService } from '../../services/electron.service';
+import { BarcodeService } from '../../services/barcode.service';
 
 @Component({
   selector: 'app-add-products',
@@ -19,6 +21,7 @@ export class AddProductsComponent implements OnInit {
 
   product: any = {
     image: null,
+    code: '',
     name: '',
     price: null,
     stock: null,
@@ -26,10 +29,15 @@ export class AddProductsComponent implements OnInit {
     category_id: null
   };
   archivoSeleccionado: string = '';
+  isCapturingBarcode = false;
 
   categories: any[] = [];
 
-  constructor(private electronService: ElectronService) {}
+  constructor(
+    private electronService: ElectronService,
+    private route: ActivatedRoute,
+    private barcodeService: BarcodeService
+  ) {}
 
   onImageInputChange(value: string) {
     this.product.image = value;
@@ -50,6 +58,13 @@ export class AddProductsComponent implements OnInit {
 
   async ngOnInit() {
     await this.loadCategories();
+    
+    // Verificar si hay un código de barras en los query parameters
+    this.route.queryParams.subscribe(params => {
+      if (params['code']) {
+        this.product.code = params['code'];
+      }
+    });
   }
 
   ngOnChanges() {
@@ -64,6 +79,7 @@ export class AddProductsComponent implements OnInit {
     } else {
       this.product = {
         image: '',
+        code: '',
         name: '',
         price: null,
         stock: null,
@@ -125,5 +141,73 @@ export class AddProductsComponent implements OnInit {
 
   async loadCategories() {
     this.categories = await this.electronService.getCategories();
+  }
+
+  /**
+   * Inicia la captura de código de barras
+   */
+  startBarcodeCapture() {
+    this.isCapturingBarcode = true;
+    this.product.code = '';
+    
+    // Mostrar instrucción al usuario
+    setTimeout(() => {
+      const instruction = document.getElementById('barcode-instruction');
+      if (instruction) {
+        instruction.focus();
+      }
+    }, 100);
+  }
+
+  /**
+   * Maneja los eventos de teclado para capturar códigos de barras
+   */
+  onBarcodeKeyDown(event: KeyboardEvent) {
+    if (!this.isCapturingBarcode) return;
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.finishBarcodeCapture();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelBarcodeCapture();
+    }
+  }
+
+  /**
+   * Termina la captura del código de barras
+   */
+  finishBarcodeCapture() {
+    this.isCapturingBarcode = false;
+    if (this.product.code.trim()) {
+      console.log('Código capturado:', this.product.code);
+    }
+  }
+
+  /**
+   * Cancela la captura del código de barras
+   */
+  cancelBarcodeCapture() {
+    this.isCapturingBarcode = false;
+    this.product.code = '';
+  }
+
+  /**
+   * Valida el código de barras ingresado
+   */
+  async validateBarcodeCode() {
+    if (!this.product.code.trim()) return;
+
+    try {
+      // Verificar si el código ya existe (solo si no estamos editando el mismo producto)
+      const existingProduct = await this.electronService.getProductByCode(this.product.code.trim());
+      
+      if (existingProduct && existingProduct.id !== this.product.id) {
+        alert(`Este código ya está asignado al producto: ${existingProduct.name}`);
+        this.product.code = '';
+      }
+    } catch (error) {
+      console.error('Error al validar código:', error);
+    }
   }
 }

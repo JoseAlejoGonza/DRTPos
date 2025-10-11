@@ -1,0 +1,51 @@
+<!-- Modal de Producto No Encontrado -->
+<div class="modal-backdrop" *ngIf="showModal" (click)="onBackdropClick($event)">
+  <div class="product-not-found-modal" (click)="$event.stopPropagation()">
+    <!-- Header del Modal -->
+    <div class="modal-header">
+      <div class="icon-container">
+        <i class="fas fa-exclamation-triangle warning-icon"></i>
+      </div>
+      <h4 class="modal-title">Producto no encontrado</h4>
+      <button class="btn-close-modal" (click)="closeModal()" title="Cerrar">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Contenido del Modal -->
+    <div class="modal-body">
+      <div class="message-container">
+        <p class="main-message">
+          El código escaneado <strong>"{{ scannedCode }}"</strong> no corresponde a ningún producto registrado en el sistema.
+        </p>
+        
+        <div class="info-box">
+          <i class="fas fa-info-circle info-icon"></i>
+          <p class="info-text">
+            Para continuar con la venta, debe agregar este producto al sistema primero.
+          </p>
+        </div>
+
+        <div class="code-display">
+          <label class="code-label">Código escaneado:</label>
+          <div class="code-value">
+            <i class="fas fa-barcode code-icon"></i>
+            <span class="code-text">{{ scannedCode }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer del Modal -->
+    <div class="modal-footer">
+      <button class="btn btn-outline-secondary" (click)="closeModal()">
+        <i class="fas fa-times me-2"></i>
+        Cancelar
+      </button>
+      <button class="btn btn-primary" (click)="goToAddProduct()">
+        <i class="fas fa-plus me-2"></i>
+        Agregar Producto Nuevo
+      </button>
+    </div>
+  </div>
+</div>

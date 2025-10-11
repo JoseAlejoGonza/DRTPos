@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   addProduct: (p) => ipcRenderer.invoke('products:add', p),
   updateProduct: (p) => ipcRenderer.invoke('products:update', p),
   deleteProduct: (id) => ipcRenderer.invoke('products:delete', id),
+  getProductByCode: (code) => ipcRenderer.invoke('products:getByCode', code),
   openImageDialog: () => ipcRenderer.invoke('open-image-dialog'),
 
   // Categorías
@@ -19,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   addClient: (c) => ipcRenderer.invoke('clients:add', c),
   updateClient: (c) => ipcRenderer.invoke('clients:update', c),
   deleteClient: (id) => ipcRenderer.invoke('clients:delete', id),
+  searchClientByDocument: (documentType, documentNumber) => ipcRenderer.invoke('clients:searchByDocument', {documentType, documentNumber}),
 
   // Facturas
   getInvoices: () => ipcRenderer.invoke('invoices:getAll'),

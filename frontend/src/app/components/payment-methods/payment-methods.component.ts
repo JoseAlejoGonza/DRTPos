@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PaymentService, PurchaseData, PaymentMethod } from '../../services/payment.service';
 import { CartService } from '../../services/cart.service';
+import { ElectronService } from '../../services/electron.service';
 
 @Component({
   selector: 'app-payment-methods',
@@ -20,11 +21,45 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   requiresInvoice: boolean = false;
   isProcessing: boolean = false;
 
+  // Propiedades para búsqueda y manejo de clientes
+  documentTypes = [
+    { value: 'CC', label: 'Cédula de Ciudadanía' },
+    { value: 'NIT', label: 'NIT' },
+    { value: 'PA', label: 'Pasaporte' }
+  ];
+  selectedDocumentType: string = 'CC';
+  documentNumber: string = '';
+  foundClient: any = null;
+  isSearchingClient: boolean = false;
+  showClientForm: boolean = false;
+  clientNotFound: boolean = false;
+
+  // Propiedades para formulario de cliente
+  newClient = {
+    document_type: 'CC',
+    document_number: '',
+    name: '',
+    address: '',
+    phone_number: '',
+    email: '',
+    registration_date: new Date().toISOString()
+  };
+
+  // Propiedades para efectivo y vueltas
+  cashReceived: number = 0;
+  changeAmount: number = 0;
+
+  // Propiedades para desglose de totales
+  subtotal: number = 0;
+  ivaAmount: number = 0;
+  total: number = 0;
+
   private subscriptions: Subscription[] = [];
 
   constructor(
     private paymentService: PaymentService,
-    private cartService: CartService
+    private cartService: CartService,
+    private electronService: ElectronService
   ) {}
 
   ngOnInit(): void {
@@ -51,6 +86,9 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
     // Suscribirse a los datos de compra
     const dataSubscription = this.paymentService.purchaseData$.subscribe(data => {
       this.purchaseData = data;
+      if (data) {
+        this.calculateTotals();
+      }
     });
 
     this.subscriptions.push(modalSubscription, dataSubscription);
@@ -70,6 +108,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
     this.selectedPaymentMethod = '';
     this.requiresInvoice = false;
     this.isProcessing = false;
+    this.resetClientFields();
   }
 
   /**
@@ -156,5 +195,145 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   isMethodEnabled(methodId: string): boolean {
     const method = this.paymentService.getPaymentMethod(methodId);
     return method ? method.enabled : false;
+  }
+
+  /**
+   * Busca un cliente por tipo y número de documento
+   */
+  async searchClient(): Promise<void> {
+    if (!this.documentNumber.trim()) {
+      alert('Por favor ingrese el número de documento');
+      return;
+    }
+
+    this.isSearchingClient = true;
+    this.clientNotFound = false;
+    this.foundClient = null;
+
+    try {
+      const client = await this.electronService.searchClientByDocument(
+        this.selectedDocumentType, 
+        this.documentNumber.trim()
+      );
+
+      if (client) {
+        this.foundClient = client;
+        this.clientNotFound = false;
+      } else {
+        this.clientNotFound = true;
+        this.foundClient = null;
+      }
+    } catch (error) {
+      console.error('Error al buscar cliente:', error);
+      alert('Error al buscar el cliente');
+    } finally {
+      this.isSearchingClient = false;
+    }
+  }
+
+  /**
+   * Abre el formulario para crear un nuevo cliente
+   */
+  openClientForm(): void {
+    this.newClient = {
+      document_type: this.selectedDocumentType,
+      document_number: this.documentNumber.trim(),
+      name: '',
+      address: '',
+      phone_number: '',
+      email: '',
+      registration_date: new Date().toISOString()
+    };
+    this.showClientForm = true;
+  }
+
+  /**
+   * Cancela la creación de cliente
+   */
+  cancelClientForm(): void {
+    this.showClientForm = false;
+    this.newClient = {
+      document_type: 'CC',
+      document_number: '',
+      name: '',
+      address: '',
+      phone_number: '',
+      email: '',
+      registration_date: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Crea un nuevo cliente
+   */
+  async createClient(): Promise<void> {
+    // Validaciones
+    if (!this.newClient.name.trim()) {
+      alert('El nombre completo es obligatorio');
+      return;
+    }
+    if (!this.newClient.phone_number.trim()) {
+      alert('El número de teléfono es obligatorio');
+      return;
+    }
+    if (!this.newClient.email.trim()) {
+      alert('El correo electrónico es obligatorio');
+      return;
+    }
+
+    try {
+      const result = await this.electronService.addClient(this.newClient);
+      if (result) {
+        alert('Cliente creado exitosamente');
+        this.foundClient = { ...this.newClient, id: result.lastInsertRowid };
+        this.showClientForm = false;
+        this.clientNotFound = false;
+      }
+    } catch (error) {
+      console.error('Error al crear cliente:', error);
+      alert('Error al crear el cliente');
+    }
+  }
+
+  /**
+   * Calcula el desglose de totales con IVA
+   */
+  calculateTotals(): void {
+    if (!this.purchaseData) return;
+    
+    this.total = this.purchaseData.total;
+    this.ivaAmount = this.total * 0.19; // 19% IVA
+    this.subtotal = this.total - this.ivaAmount;
+  }
+
+  /**
+   * Calcula las vueltas cuando se ingresa dinero en efectivo
+   */
+  calculateChange(): void {
+    if (this.cashReceived >= this.total) {
+      this.changeAmount = this.cashReceived - this.total;
+    } else {
+      this.changeAmount = 0;
+    }
+  }
+
+  /**
+   * Se ejecuta cuando cambia el monto recibido en efectivo
+   */
+  onCashReceivedChange(): void {
+    this.calculateChange();
+  }
+
+  /**
+   * Resetea los campos de cliente
+   */
+  private resetClientFields(): void {
+    this.selectedDocumentType = 'CC';
+    this.documentNumber = '';
+    this.foundClient = null;
+    this.clientNotFound = false;
+    this.showClientForm = false;
+    this.cashReceived = 0;
+    this.changeAmount = 0;
   }
 }

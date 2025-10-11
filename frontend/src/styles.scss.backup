@@ -1,0 +1,46 @@
+/* You can add global styles to this file, and also import other style files */
+$primary: #0d6b88;
+
+$link-hover-color: darken($primary, 15%);
+$color-hover: darken($primary, 15%);
+$action-color-edit: #06be59; // Amarillo para editar
+$action-color-delete: #b31524; // Rojo para eliminar
+$text-neutral: #dddd;
+
+
+@import "bootstrap/scss/bootstrap";
+
+.btn-action-color-edit {
+  background-color: $action-color-edit;
+  color: white;
+
+  &:hover {
+    background-color: darken($action-color-edit, 10%);
+    color: white;
+  }
+}
+
+.btn-action-color-delete {
+  background-color: $action-color-delete;
+  color: white;
+
+  &:hover {
+    background-color: darken($action-color-delete, 10%);
+    color: white;
+  }
+}
+.text-menu{
+    color: $text-neutral;
+    font-weight: bold;
+    text-decoration: none;
+}
+.text-menu:hover{
+    color: white;
+}
+.color-menu{
+    background: linear-gradient(to top, $primary, $link-hover-color);
+}
+.color-menu-summary{
+    background: linear-gradient(to bottom, lighten($primary, 15%), lighten($link-hover-color, 15%));
+    // background-color: #cdd9dd;
+}

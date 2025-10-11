@@ -25,6 +25,49 @@
             <img [src]="getImagePreview()" alt="Vista previa" style="max-width:100px;max-height:100px; border:1px solid #ccc; border-radius:4px;" />
           </div>
 
+          <!-- Campo de Código de Barras -->
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="fas fa-barcode me-2"></i>
+              Código de Barras / QR (Opcional)
+            </label>
+            
+            <div class="input-group" [class.capturing-mode]="isCapturingBarcode">
+              <input 
+                class="form-control" 
+                type="text" 
+                [(ngModel)]="product.code" 
+                name="code" 
+                placeholder="Ingrese código manualmente o use la pistola lectora"
+                (blur)="validateBarcodeCode()"
+                (keydown)="onBarcodeKeyDown($event)"
+                id="barcode-instruction"
+                [class.capturing-mode]="isCapturingBarcode"
+              />
+              <button 
+                class="btn btn-outline-secondary" 
+                type="button" 
+                (click)="startBarcodeCapture()"
+                [class.btn-warning]="isCapturingBarcode"
+                title="Capturar con pistola lectora"
+              >
+                <i class="fas fa-scan" *ngIf="!isCapturingBarcode"></i>
+                <i class="fas fa-spinner fa-spin" *ngIf="isCapturingBarcode"></i>
+                {{ isCapturingBarcode ? 'Escaneando...' : 'Escanear' }}
+              </button>
+            </div>
+            
+            <small class="form-text text-muted mt-1">
+              <i class="fas fa-info-circle me-1"></i>
+              <span *ngIf="!isCapturingBarcode">
+                Puede ingresar el código manualmente o hacer clic en "Escanear" y usar la pistola lectora.
+              </span>
+              <span *ngIf="isCapturingBarcode" class="text-warning">
+                <strong>Modo captura activado:</strong> Use la pistola lectora ahora. Presione Enter para confirmar o Escape para cancelar.
+              </span>
+            </small>
+          </div>
+
           <label class="form-label">Nombre:</label>
           <input class="form-control" [(ngModel)]="product.name" name="name" required />
 

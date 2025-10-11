@@ -42,6 +42,9 @@ ipcMain.handle('products:getAll', () => {
 ipcMain.handle('products:add', (e, p) => {
   return db.addProduct(p);
 });
+ipcMain.handle('products:getByCode', (e, code) => {
+  return db.getProductByCode(code);
+});
 ipcMain.handle('products:update', (e, p) => {
   // Actualizar producto incluyendo categoría
   const stmt = db.db.prepare('UPDATE products SET imagen=?, code=?, name=?, price=?, stock=?, category_id=? WHERE id=?');
@@ -76,6 +79,10 @@ ipcMain.handle('clients:getAll', () => db.getClients());
 ipcMain.handle('clients:add', (e, client) => db.addClient(client));
 ipcMain.handle('clients:update', (e, client) => db.updateClient(client));
 ipcMain.handle('clients:delete', (e, id) => db.deleteClient(id));
+ipcMain.handle('clients:searchByDocument', (e, {documentType, documentNumber}) => {
+  const stmt = db.db.prepare('SELECT * FROM clients WHERE document_type = ? AND document_number = ?');
+  return stmt.get(documentType, documentNumber);
+});
 
 // INVOICES
 ipcMain.handle('invoices:getAll', () => db.getInvoices());

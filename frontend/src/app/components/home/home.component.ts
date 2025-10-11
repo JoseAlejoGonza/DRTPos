@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
+import { BarcodeService } from '../../services/barcode.service';
 
 @Component({
   selector: 'app-home',
@@ -9,13 +10,18 @@ import { Router, RouterOutlet } from '@angular/router';
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })
-export class HomeComponent implements OnInit{
+export class HomeComponent implements OnInit, OnDestroy{
   shopName: string = 'DRT';
 
-  constructor(public router: Router) {}
+  constructor(public router: Router, private barcodeService: BarcodeService) {}
 
   ngOnInit(): void {
+    this.barcodeService.setShopContext(false);
     this.router.navigate(['/products']);
+  }
+
+  ngOnDestroy(): void {
+    this.barcodeService.setShopContext(false);
   }
 
   navigateTo(route: string) {

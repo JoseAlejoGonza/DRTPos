@@ -433,3 +433,263 @@
     justify-content: space-between;
   }
 }
+
+// ============ ESTILOS PARA NUEVAS FUNCIONALIDADES ============
+
+/* Sección de búsqueda de cliente */
+.client-search-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+
+  .section-subtitle {
+    color: #495057;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .search-form {
+    margin-bottom: 1rem;
+
+    .form-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-select, .form-control {
+      font-size: 0.875rem;
+      height: 38px;
+    }
+  }
+
+  .client-found, .client-not-found {
+    margin-top: 1rem;
+
+    .alert {
+      margin-bottom: 0;
+      padding: 0.75rem 1rem;
+
+      h6 {
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+      }
+
+      .client-info p {
+        margin-bottom: 0.25rem;
+        font-size: 0.875rem;
+      }
+    }
+  }
+}
+
+/* Formulario de cliente */
+.client-form-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+
+  .client-form-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+
+    .form-header {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 8px 8px 0 0;
+
+      h6 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .btn-close-form {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+      }
+    }
+
+    .form-body {
+      padding: 1.5rem;
+
+      .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 0.25rem;
+      }
+
+      .form-control {
+        font-size: 0.875rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        
+        &:focus {
+          border-color: #28a745;
+          box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+        }
+      }
+    }
+
+    .form-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #e9ecef;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+  }
+}
+
+/* Desglose de totales */
+.total-section {
+  .subtotal-row, .iva-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.9rem;
+
+    .subtotal-label, .iva-label {
+      color: white;
+      font-weight: 500;
+    }
+
+    .subtotal-amount, .iva-amount {
+      color: white;
+      font-weight: 600;
+    }
+  }
+
+  .total-row {
+    padding: 0.75rem 0 0.5rem 0;
+    border-top: 2px solid #007bff;
+  }
+}
+
+/* Calculadora de efectivo */
+.cash-calculator {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+
+  .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.25rem;
+  }
+
+  .form-control {
+    font-size: 0.875rem;
+    height: 38px;
+
+    &[readonly] {
+      background-color: #e9ecef;
+      opacity: 1;
+    }
+  }
+
+  .change-result {
+    .alert {
+      margin-bottom: 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+
+      &.alert-success {
+        background-color: #d1e7dd;
+        border-color: #badbcc;
+        color: #0f5132;
+      }
+
+      &.alert-danger {
+        background-color: #f8d7da;
+        border-color: #f5c2c7;
+        color: #842029;
+      }
+    }
+  }
+}
+
+/* Responsive para dispositivos pequeños */
+@media (max-width: 767px) {
+  .client-search-section {
+    .search-form .row {
+      .col-md-4, .col-md-6, .col-md-2 {
+        width: 100%;
+        margin-bottom: 0.75rem;
+      }
+
+      .col-md-2:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .client-form-modal {
+    padding: 10px;
+
+    .client-form-content {
+      .form-body .row {
+        .col-md-6, .col-md-12 {
+          width: 100%;
+          margin-bottom: 0.75rem;
+        }
+      }
+
+      .form-footer {
+        flex-direction: column;
+        
+        .btn {
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .cash-calculator {
+    .row .col-md-6 {
+      width: 100%;
+      margin-bottom: 0.75rem;
+    }
+  }
+}

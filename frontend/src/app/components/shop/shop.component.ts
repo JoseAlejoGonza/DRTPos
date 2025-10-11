@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ElectronService } from '../../services/electron.service';
 import { CartService, CartTab, CartItem } from '../../services/cart.service';
 import { PaymentService } from '../../services/payment.service';
+import { BarcodeService } from '../../services/barcode.service';
 import { PaymentMethodsComponent } from '../payment-methods/payment-methods.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -25,16 +26,23 @@ export class ShopComponent implements OnInit, OnDestroy {
   constructor(
     private electronService: ElectronService,
     private cartService: CartService,
-    private paymentService: PaymentService
+    private paymentService: PaymentService,
+    private barcodeService: BarcodeService
   ) {}
 
   async ngOnInit() {
     await this.loadProducts();
     this.setupCartSubscriptions();
+    
+    // Notificar al BarcodeService que estamos en la sección de ventas
+    this.barcodeService.setShopContext(true);
   }
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
+    
+    // Notificar al BarcodeService que salimos de la sección de ventas
+    this.barcodeService.setShopContext(false);
   }
 
   /**

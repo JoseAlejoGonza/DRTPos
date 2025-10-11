@@ -164,6 +164,11 @@ function getProducts() {
   return db.prepare(`SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id`).all();
 }
 
+function getProductByCode(code) {
+  // Busca un producto por su código de barras/QR
+  return db.prepare(`SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.code = ?`).get(code);
+}
+
 function addCategory(name) {
   return db.prepare('INSERT INTO categories (name) VALUES (?)').run(name);
 }
@@ -197,6 +202,7 @@ function updateProduct(product) {
 module.exports = {
   addProduct,
   getProducts,
+  getProductByCode,
   addCategory,
   getCategories,
   deleteCategory,

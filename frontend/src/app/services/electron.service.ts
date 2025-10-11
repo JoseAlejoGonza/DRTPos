@@ -13,6 +13,7 @@ export class ElectronService {
       return (window as any).api.getProducts(); 
   }
   async addProduct(p: any) { return (window as any).api.addProduct(p); }
+  async getProductByCode(code: string) { return (window as any).api.getProductByCode(code); }
   async openImageDialog() { return (window as any).api.openImageDialog(); }
   async updateProduct(p: any) { return (window as any).api.updateProduct(p); }
   async deleteProduct(id: number) { return (window as any).api.deleteProduct(id); }
@@ -42,4 +43,9 @@ export class ElectronService {
   // Detail Sales
   async addDetailSale(detail: any) { return (window as any).api.addDetailSale(detail); }
   async getDetailSales() { return (window as any).api.getDetailSales(); }
+
+  // Client Search
+  async searchClientByDocument(documentType: string, documentNumber: string) { 
+    return (window as any).api.searchClientByDocument(documentType, documentNumber); 
+  }
 }
