@@ -1,0 +1,86 @@
+{
+  "company": {
+    "name": "DRT POS System",
+    "nit": "900000000-1",
+    "address": "Calle 123 #45-67, Bogotá, Colombia",
+    "phone": "+57 300 123 4567",
+    "email": "ventas@drtpos.com",
+    "website": "www.drtpos.com"
+  },
+  "invoicing": {
+    "enabled": true,
+    "environment": "test",
+    "dianEndpoint": "https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc",
+    "certificatePath": "",
+    "certificatePassword": "",
+    "resolutionNumber": "18764003411234",
+    "resolutionDate": "2023-01-01",
+    "invoicePrefix": "FE",
+    "ivaRate": 0.19
+  },
+  "printing": {
+    "thermal": {
+      "enabled": true,
+      "defaultPaperWidth": 80,
+      "availableWidths": [58, 60, 80]
+    },
+    "normal": {
+      "enabled": true,
+      "defaultFormat": "A4"
+    }
+  },
+  "whatsapp": {
+    "enabled": true,
+    "companyPhone": "+573001234567",
+    "messageTemplates": {
+      "invoice": "¡Hola! 👋\n\nGracias por tu compra en *{companyName}*.\n\nTe enviamos tu factura electrónica:\n📄 *Factura:* {invoiceNumber}\n💰 *Total:* {total}\n📅 *Fecha:* {date}\n\n{invoiceDetails}\n\n¡Esperamos verte pronto! 😊\n\n_Este es un mensaje automático del sistema POS._",
+      "receipt": "¡Hola! 👋\n\nGracias por tu compra en *{companyName}*.\n\nTe enviamos tu comprobante de venta:\n🧾 *Comprobante de venta*\n💰 *Total:* {total}\n📅 *Fecha:* {date}\n\n{purchaseDetails}\n\n¡Esperamos verte pronto! 😊\n\n_Este es un mensaje automático del sistema POS._"
+    }
+  },
+  "payments": {
+    "methods": [
+      {
+        "id": "cash",
+        "name": "Efectivo",
+        "enabled": true,
+        "requiresChange": true
+      },
+      {
+        "id": "card",
+        "name": "Tarjeta",
+        "enabled": true,
+        "requiresChange": false
+      },
+      {
+        "id": "transfer",
+        "name": "Transferencia",
+        "enabled": true,
+        "requiresChange": false
+      },
+      {
+        "id": "qr",
+        "name": "Código QR",
+        "enabled": true,
+        "requiresChange": false
+      },
+      {
+        "id": "paymentlink",
+        "name": "Link de Pago",
+        "enabled": true,
+        "requiresChange": false
+      }
+    ]
+  },
+  "ui": {
+    "currency": "COP",
+    "dateFormat": "dd/MM/yyyy",
+    "timeFormat": "HH:mm",
+    "language": "es-CO"
+  },
+  "system": {
+    "autoBackup": true,
+    "backupInterval": 86400000,
+    "logLevel": "info",
+    "enableDevTools": true
+  }
+}

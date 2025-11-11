@@ -1,0 +1,326 @@
+<div class="container-fluid p-4">
+  <div class="row">
+    <div class="col-12">
+      <h2 class="text-primary mb-4">
+        <i class="fas fa-cog me-2"></i>
+        Configuración del Sistema
+      </h2>
+    </div>
+  </div>
+
+  <!-- Configuración de Impresión -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-print me-2"></i>
+            Configuración de Impresión
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6 class="text-success mb-3">🪄 Impresión Exitosa (Recomendado)</h6>
+              <div class="alert alert-success">
+                <h6><i class="fas fa-star me-1"></i> Método Legacy Probado</h6>
+                <p class="mb-2 small">Este método funciona 100% - Imprime + Corta + Abre cajón</p>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Impresora Legacy (Método Exitoso)</label>
+                <input 
+                  type="text" 
+                  class="form-control form-control-lg border-success" 
+                  [(ngModel)]="legacyPrinterName"
+                  placeholder="DigitalPOS"
+                  style="font-weight: bold; color: #28a745;">
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    [(ngModel)]="autoprintEnabled"
+                    id="autoprintCheck">
+                  <label class="form-check-label" for="autoprintCheck">
+                    <strong>Impresión automática después del pago</strong>
+                  </label>
+                </div>
+                <small class="text-muted">Si está habilitado, imprime automáticamente sin preguntar</small>
+              </div>
+              
+              <div class="d-flex gap-2">
+                <button 
+                  class="btn btn-warning" 
+                  (click)="testLegacyPrint()">
+                  <i class="fas fa-magic me-1"></i>
+                  Probar Método Exitoso
+                </button>
+                <button 
+                  class="btn btn-success" 
+                  (click)="saveLegacyConfig()">
+                  <i class="fas fa-save me-1"></i>
+                  Guardar
+                </button>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <h6 class="text-secondary mb-3">Impresión Térmica (Experimental)</h6>
+              <div class="alert alert-warning">
+                <small><i class="fas fa-exclamation-triangle me-1"></i> Método experimental - Use el Legacy si funciona</small>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Ancho de Papel (caracteres)</label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  [(ngModel)]="thermalPaperWidth"
+                  min="20" 
+                  max="80"
+                  placeholder="48">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Impresora Térmica</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="thermalPrinterName"
+                  placeholder="Nombre de la impresora térmica">
+              </div>
+              <button 
+                class="btn btn-outline-secondary btn-sm" 
+                (click)="testThermalPrint()">
+                <i class="fas fa-check me-1"></i>
+                Probar Térmica
+              </button>
+            </div>
+            <div class="col-md-6">
+              <h6 class="text-secondary mb-3">Impresión Normal</h6>
+              <div class="mb-3">
+                <label class="form-label">Ancho de Papel (caracteres)</label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  [(ngModel)]="config.normal.paperWidth"
+                  min="60" 
+                  max="120"
+                  placeholder="80">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Impresora Normal</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="config.normal.printerName"
+                  placeholder="Nombre de la impresora normal">
+              </div>
+              <button 
+                class="btn btn-info btn-sm" 
+                (click)="testBasicPrint()">
+                <i class="fas fa-print me-1"></i>
+                Probar Normal
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuración de Facturación Electrónica -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-file-invoice me-2"></i>
+            Facturación Electrónica DIAN
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">NIT de la Empresa</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="config.invoicing.companyNit"
+                  placeholder="123456789-0">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Nombre de la Empresa</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="config.invoicing.companyName"
+                  placeholder="Mi Empresa SAS">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Dirección</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="config.invoicing.companyAddress"
+                  placeholder="Calle 123 #45-67">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Ciudad</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="config.invoicing.companyCity"
+                  placeholder="Bogotá">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Teléfono</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="config.invoicing.companyPhone"
+                  placeholder="601-234-5678">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input 
+                  type="email" 
+                  class="form-control" 
+                  [(ngModel)]="config.invoicing.companyEmail"
+                  placeholder="facturacion@miempresa.com">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuración de WhatsApp -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="fab fa-whatsapp me-2"></i>
+            Configuración de WhatsApp
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  [(ngModel)]="config.whatsapp.enabled"
+                  id="whatsappEnabled">
+                <label class="form-check-label" for="whatsappEnabled">
+                  Habilitar envío por WhatsApp
+                </label>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Mensaje Personalizado</label>
+                <textarea 
+                  class="form-control" 
+                  rows="3"
+                  [(ngModel)]="config.whatsapp.defaultMessage"
+                  placeholder="Hola! Te enviamos tu factura. Gracias por tu compra.">
+                </textarea>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle me-1"></i> Instrucciones</h6>
+                <p class="mb-0 small">
+                  El sistema abrirá WhatsApp Web automáticamente con el número del cliente y 
+                  el archivo PDF adjunto. Asegúrate de tener WhatsApp Web abierto y conectado.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <!-- Botones de Acción -->
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex gap-2">
+        <button 
+          class="btn btn-primary" 
+          (click)="saveConfig()">
+          <i class="fas fa-save me-1"></i>
+          Guardar Configuración
+        </button>
+        <button 
+          class="btn btn-secondary" 
+          (click)="loadConfig()">
+          <i class="fas fa-refresh me-1"></i>
+          Recargar
+        </button>
+        <button 
+          class="btn btn-warning" 
+          (click)="resetConfig()">
+          <i class="fas fa-undo me-1"></i>
+          Restaurar Predeterminados
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+ 
+<!-- Modal Simple para Selección de Impresora -->
+<div *ngIf="showPrinterDialog" class="printer-dialog-overlay" (click)="onPrinterDialogCancel()">
+  <div class="printer-dialog" (click)="$event.stopPropagation()">
+    <div class="printer-dialog-header">
+      <h3>🖨️ Método Exitoso - Seleccionar Impresora</h3>
+    </div>
+    
+    <div class="printer-dialog-body">
+      <div class="input-group">
+        <label for="printerNameInput">Nombre de la Impresora:</label>
+        <input 
+          id="printerNameInput"
+          type="text" 
+          [(ngModel)]="printerName"
+          placeholder="Ejm: POS-80C, EPSON TM-T20II Receipt"
+          class="printer-input"
+          (keyup.enter)="onPrinterDialogConfirm()">
+      </div>
+      
+      <div class="printer-tips">
+        <h4>💡 Consejos:</h4>
+        <ul>
+          <li>Usa el nombre exacto como aparece en Windows</li>
+          <li>Panel de Control → Dispositivos e impresoras</li>
+          <li>Ejemplos: "POS-80C", "EPSON TM-T20II Receipt", "Generic / Text Only"</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="printer-dialog-footer">
+      <button 
+        type="button" 
+        class="btn-cancel" 
+        (click)="onPrinterDialogCancel()">
+        ❌ Cancelar
+      </button>
+      <button 
+        type="button" 
+        class="btn-confirm" 
+        (click)="onPrinterDialogConfirm()"
+        [disabled]="!printerName.trim()">
+        ✅ Continuar
+      </button>
+    </div>
+  </div>
+</div>

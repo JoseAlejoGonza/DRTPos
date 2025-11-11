@@ -109,6 +109,7 @@
                        class="form-control" 
                        id="documentNumber"
                        [(ngModel)]="documentNumber"
+                       (ngModelChange)="onDocumentChange()"
                        placeholder="Ingrese el número de documento"
                        (keyup.enter)="searchClient()">
               </div>
@@ -200,7 +201,9 @@
                     <input type="text" 
                            class="form-control" 
                            [(ngModel)]="newClient.phone_number"
-                           placeholder="Número de teléfono">
+                           (ngModelChange)="onPhoneChange()"
+                           placeholder="Número de teléfono"
+                           maxlength="15">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Correo Electrónico *</label>
@@ -286,13 +289,12 @@
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Dinero Recibido:</label>
-                    <input type="number" 
-                           class="form-control" 
-                           [(ngModel)]="cashReceived"
-                           (ngModelChange)="onCashReceivedChange()"
-                           placeholder="0"
-                           min="0"
-                           step="50">
+                    <input type="number"
+                          name="ammountReceived"
+                          class="form-control" 
+                          [(ngModel)]="cashReceived"
+                          (ngModelChange)="onCashReceivedChange()"
+                          >
                   </div>
                 </div>
                 
@@ -363,3 +365,5 @@
     </div>
   </div>
 </div>
+
+  

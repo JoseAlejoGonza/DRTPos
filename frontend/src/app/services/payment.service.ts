@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { CartTab, CartItem } from './cart.service';
+import { ElectronService } from './electron.service';
 
 export interface PurchaseData {
   cart: CartTab;
@@ -66,7 +67,7 @@ export class PaymentService {
     }
   ];
 
-  constructor() {}
+  constructor(private electronService: ElectronService) {}
 
   /**
    * Abre el modal de métodos de pago con los datos de compra
@@ -97,38 +98,54 @@ export class PaymentService {
   /**
    * Procesa el pago con el método seleccionado
    */
-  processPayment(paymentMethodId: string, requiresInvoice: boolean, additionalData?: any): Promise<any> {
-    return new Promise((resolve, reject) => {
+  async processPayment(paymentMethodId: string, requiresInvoice: boolean, clientData?: any, additionalData?: any): Promise<any> {
+    try {
       const purchaseData = this.getCurrentPurchaseData();
       if (!purchaseData) {
-        reject('No hay datos de compra disponibles');
-        return;
+        throw new Error('No hay datos de compra disponibles');
       }
 
-      // Simular procesamiento de pago
       console.log('Procesando pago:', {
         paymentMethod: paymentMethodId,
         requiresInvoice,
         purchaseData,
+        clientData,
         additionalData,
         processedAt: new Date()
       });
 
-      // Simular delay de procesamiento
-      setTimeout(() => {
-        // Aquí irá la lógica real de procesamiento según el método
-        const result = {
-          success: true,
-          paymentMethodId,
-          transactionId: this.generateTransactionId(),
-          amount: purchaseData.total,
-          requiresInvoice,
-          processedAt: new Date()
-        };
+      // Preparar datos para el backend
+      const paymentData = {
+        saleData: {
+          total: purchaseData.total,
+          items: purchaseData.items,
+          timestamp: new Date().toISOString()
+        },
+        clientData: clientData || null,
+        paymentMethod: this.getPaymentMethod(paymentMethodId)?.name || 'Desconocido',
+        requiresInvoice,
+        additionalData
+      };
 
-        resolve(result);
-      }, 1500);
-    });
+      // Procesar pago en el backend
+      const result = await this.electronService.processPayment(paymentData);
+      
+      return {
+        success: true,
+        paymentMethodId,
+        transactionId: this.generateTransactionId(),
+        amount: purchaseData.total,
+        requiresInvoice,
+        processedAt: new Date(),
+        saleId: result.saleId,
+        invoice: result.invoice,
+        backendResult: result
+      };
+
+    } catch (error) {
+      console.error('Error procesando pago:', error);
+      throw error;
+    }
   }
 
   /**

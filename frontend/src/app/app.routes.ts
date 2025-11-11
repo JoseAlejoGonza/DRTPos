@@ -3,11 +3,16 @@ import { CategoryComponent } from './components/category-component/category.comp
 import { ProductsComponent } from './components/products/products.component';
 import { HomeComponent } from './components/home/home.component';
 import { ShopComponent } from './components/shop/shop.component';
+import { SettingsComponent } from './components/settings/settings.component';
+import { ReportsComponent } from './components/reports/reports.component';
 
 
 export const routes: Routes = [
 	{ path: 'home', component: HomeComponent },
 	{ path: 'products', component: ProductsComponent },
 	{ path: 'categories', component: CategoryComponent },
-	{ path: 'shop', component: ShopComponent }
+	{ path: 'shop', component: ShopComponent },
+	{ path: 'reports', component: ReportsComponent },
+	{ path: 'settings', component: SettingsComponent },
+	{ path: '', redirectTo: '/home', pathMatch: 'full' }
 ];

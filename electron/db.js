@@ -49,12 +49,43 @@ if (imagenCol && imagenCol.type !== 'TEXT') {
   db.prepare('DROP TABLE products_old').run();
 }
 
+// Tabla de ventas (primera definición)
 db.prepare(`CREATE TABLE IF NOT EXISTS sales (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   date TEXT,
   total REAL,
   payload TEXT
 )`).run();
+
+// Migración: Agregar columnas faltantes a la tabla sales si no existen
+try {
+  const salesCols = db.prepare("PRAGMA table_info(sales)").all();
+  const hasDateSale = salesCols.find(col => col.name === 'date_sale');
+  const hasTotalSale = salesCols.find(col => col.name === 'total_sale');
+  const hasIdClient = salesCols.find(col => col.name === 'id_client');
+  const hasPaymentMethod = salesCols.find(col => col.name === 'payment_method');
+  
+  if (!hasDateSale) {
+    db.prepare('ALTER TABLE sales ADD COLUMN date_sale TEXT').run();
+    console.log('✅ Columna date_sale agregada a tabla sales');
+  }
+  
+  if (!hasTotalSale) {
+    db.prepare('ALTER TABLE sales ADD COLUMN total_sale REAL').run();
+    console.log('✅ Columna total_sale agregada a tabla sales');
+  }
+  
+  if (!hasIdClient) {
+    db.prepare('ALTER TABLE sales ADD COLUMN id_client INTEGER').run();
+    console.log('✅ Columna id_client agregada a tabla sales');
+  }
+  if (!hasPaymentMethod) {
+    db.prepare("ALTER TABLE sales ADD COLUMN payment_method TEXT").run();
+    console.log('✅ Columna payment_method agregada a tabla sales');
+  }
+} catch (error) {
+  console.error('❌ Error en migración de tabla sales:', error);
+}
 
 // Tabla de facturas
 db.prepare(`CREATE TABLE IF NOT EXISTS invoices (
@@ -76,14 +107,7 @@ db.prepare(`CREATE TABLE IF NOT EXISTS detail_sales (
   quantity TEXT,
   FOREIGN KEY (id_sale) REFERENCES sales(id)
 )`).run();
-// Tabla de ventas
-db.prepare(`CREATE TABLE IF NOT EXISTS sales (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  date_sale TEXT,
-  total_sale REAL,
-  id_client INTEGER,
-  FOREIGN KEY (id_client) REFERENCES clients(id)
-)`).run();
+
 // Tabla de clientes
 db.prepare(`CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,8 +122,9 @@ db.prepare(`CREATE TABLE IF NOT EXISTS clients (
 
 // Adición para sales
 function addSale(sale) {
-  return db.prepare(`INSERT INTO sales (date_sale, total_sale, id_client) VALUES (?, ?, ?)`)
-    .run(sale.date_sale, sale.total_sale, sale.id_client || null);
+  // Insert payment_method if provided (backwards compatible)
+  const stmt = db.prepare(`INSERT INTO sales (date_sale, total_sale, id_client, payment_method) VALUES (?, ?, ?, ?)`);
+  return stmt.run(sale.date_sale, sale.total_sale, sale.id_client || null, sale.payment_method || null);
 }
 
 function getSales() {
@@ -151,6 +176,14 @@ function updateClient(client) {
 
 function deleteClient(id) {
   return db.prepare('DELETE FROM clients WHERE id=?').run(id);
+}
+
+function searchClientByDocument(documentType, documentNumber) {
+  return db.prepare('SELECT * FROM clients WHERE document_type = ? AND document_number = ?').get(documentType, documentNumber);
+}
+
+function updateProductStock(productId, quantity) {
+  return db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?').run(quantity, productId);
 }
 
 function addProduct(product) {
@@ -207,11 +240,13 @@ module.exports = {
   getCategories,
   deleteCategory,
   updateProduct,
+  updateProductStock,
   // Clients
   addClient,
   getClients,
   updateClient,
   deleteClient,
+  searchClientByDocument,
   // Invoices
   addInvoice,
   getInvoices,
