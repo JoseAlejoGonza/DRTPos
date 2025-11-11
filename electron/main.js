@@ -312,8 +312,10 @@ ipcMain.handle('reports:salesByRange', (event, { from, to, granularity }) => {
 
 ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
   try {
-    const stmt = db.db.prepare(`SELECT p.id as productId, p.name as productName, p.price as unitPrice, SUM(CAST(ds.quantity AS INTEGER)) as quantitySold, SUM(CAST(ds.quantity AS INTEGER) * p.price) as totalSales FROM detail_sales ds JOIN products p ON CAST(p.id AS TEXT) = CAST(ds.id_product AS TEXT) JOIN sales s ON s.id = ds.id_sale WHERE s.date_sale BETWEEN ? AND ? GROUP BY p.id, p.name, p.price ORDER BY quantitySold DESC`);
+    // make join robust: cast ds.id_product to integer in case it was stored as text
+    const stmt = db.db.prepare(`SELECT p.id as productId, p.name as productName, p.price as unitPrice, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0)) as quantitySold, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) as totalSales FROM detail_sales ds JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) JOIN sales s ON s.id = ds.id_sale WHERE s.date_sale BETWEEN ? AND ? GROUP BY p.id, p.name, p.price ORDER BY quantitySold DESC`);
     const rows = stmt.all(from, to);
+    console.log('📊 [reports:salesByProduct] from=', from, 'to=', to, 'rows=', Array.isArray(rows) ? rows.length : 0, 'sample=', (rows && rows[0]) ? rows[0] : null);
     return { success: true, rows };
   } catch (error) {
     console.error('Error reports:salesByProduct', error);
@@ -323,8 +325,10 @@ ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
 
 ipcMain.handle('reports:salesByCategory', (event, { from, to }) => {
   try {
-    const stmt = db.db.prepare(`SELECT c.id as categoryId, c.name as categoryName, SUM(CAST(ds.quantity AS INTEGER) * p.price) as totalSales, SUM(CAST(ds.quantity AS INTEGER)) as quantitySold FROM detail_sales ds JOIN products p ON CAST(p.id AS TEXT) = CAST(ds.id_product AS TEXT) LEFT JOIN categories c ON p.category_id = c.id JOIN sales s ON s.id = ds.id_sale WHERE s.date_sale BETWEEN ? AND ? GROUP BY c.id, c.name ORDER BY totalSales DESC`);
+    // cast ds.id_product to integer to match products.id and coalesce numeric fields
+    const stmt = db.db.prepare(`SELECT c.id as categoryId, c.name as categoryName, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) as totalSales, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0)) as quantitySold FROM detail_sales ds JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) LEFT JOIN categories c ON p.category_id = c.id JOIN sales s ON s.id = ds.id_sale WHERE s.date_sale BETWEEN ? AND ? GROUP BY c.id, c.name ORDER BY totalSales DESC`);
     const rows = stmt.all(from, to);
+    console.log('📊 [reports:salesByCategory] from=', from, 'to=', to, 'rows=', Array.isArray(rows) ? rows.length : 0, 'sample=', (rows && rows[0]) ? rows[0] : null);
     return { success: true, rows };
   } catch (error) {
     console.error('Error reports:salesByCategory', error);

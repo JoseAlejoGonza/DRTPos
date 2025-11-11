@@ -57,7 +57,8 @@ export class ConfigService {
     return {
       printer: {
         legacy: {
-          printerName: 'DigitalPOS', // Tu impresora que funciona
+          // printerName: 'DigitalPOS', // Tu impresora que funciona
+          printerName: 'POS-80', // Tu impresora que funciona
           enabled: true
         },
         thermal: {

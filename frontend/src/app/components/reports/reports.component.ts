@@ -8,7 +8,7 @@ import { ElectronService } from '../../services/electron.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './reports.component.html',
-  styleUrls: []
+  styleUrls: ['./reports.component.scss']
 })
 export class ReportsComponent {
   from: string = new Date().toISOString().slice(0, 10);
@@ -198,11 +198,49 @@ export class ReportsComponent {
   }
 
   private prepareTableAndChart(kind: string) {
-    if (!this.result || !this.result.rows || !this.result.rows.length) return;
-    const sample = this.result.rows[0];
+    if (!this.result) return;
+    const rows = Array.isArray(this.result.rows) ? this.result.rows : [];
+    if (!rows.length) {
+      // Provide sensible empty table headers/keys for each kind so the UI shows an empty table or zeros
+      if (kind === 'product') {
+        this.tableKeys = ['productName', 'quantitySold', 'totalSales'];
+        this.tableHeaders = ['Producto', 'Cantidad', 'Total'];
+      } else if (kind === 'category') {
+        this.tableKeys = ['categoryName', 'quantitySold', 'totalSales'];
+        this.tableHeaders = ['Categoría', 'Cantidad', 'Total'];
+      } else if (kind === 'range') {
+        this.tableKeys = ['period', 'count_sales', 'total'];
+        this.tableHeaders = ['Periodo', 'Transacciones', 'Total'];
+      } else {
+        this.tableKeys = [];
+        this.tableHeaders = [];
+      }
+      // nothing to draw
+      return;
+    }
+    const sample = rows[0];
     this.tableKeys = Object.keys(sample);
-    this.tableHeaders = this.tableKeys.map(k => k);
+    this.tableHeaders = this.tableKeys.map(k => this.humanizeHeader(k));
     setTimeout(() => this.drawChart(kind), 50);
+  }
+
+  private humanizeHeader(key: string) {
+    if (!key) return key;
+    // common renames
+    const map: any = {
+      productName: 'Producto',
+      productId: 'Producto',
+      quantitySold: 'Cantidad',
+      totalSales: 'Total',
+      unitPrice: 'Precio Unit.',
+      categoryName: 'Categoría',
+      period: 'Periodo',
+      count_sales: 'Transacciones',
+      total: 'Total'
+    };
+    if (map[key]) return map[key];
+    // fallback: split camelCase/underscores
+    return key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, (s: string) => s.toUpperCase());
   }
 
   private drawChart(kind: string) {

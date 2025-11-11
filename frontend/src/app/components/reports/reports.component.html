@@ -87,6 +87,39 @@
       </div>
     </div>
 
+    <!-- If rows array exists but is empty, show an empty table (or zeros where appropriate) -->
+    <div *ngIf="result.rows && result.rows.length === 0">
+      <div style="display:flex; gap:20px; align-items:flex-start;">
+        <div style="flex:1; max-width:60%; overflow:auto; border:1px solid #e9ecef; padding:8px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th *ngFor="let h of tableHeaders">{{ h }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td *ngFor="let k of tableKeys">
+                  <ng-container *ngIf="k.toLowerCase().includes('total') || k.toLowerCase().includes('price') || k.toLowerCase().includes('sales')">{{ formatCurrency(0) }}</ng-container>
+                  <ng-container *ngIf="k.toLowerCase().includes('quantity') || k.toLowerCase().includes('count')">{{ formatNumber(0) }}</ng-container>
+                  <ng-container *ngIf="!k.toLowerCase().includes('total') && !k.toLowerCase().includes('price') && !k.toLowerCase().includes('sales') && !k.toLowerCase().includes('quantity') && !k.toLowerCase().includes('count')">-</ng-container>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="flex:1; max-width:40%">
+          <canvas #chartCanvas width="400" height="300"></canvas>
+        </div>
+      </div>
+
+      <div class="mt-2">
+        <button class="btn btn-outline-success me-2" (click)="exportCsv('report.csv', result.rows)">Exportar CSV</button>
+        <button class="btn btn-outline-primary" (click)="exportPdfFromRows('report.pdf', result.rows, 'Reporte')">Exportar PDF</button>
+      </div>
+    </div>
+
     <!-- Otherwise show a formatted summary view -->
     <div *ngIf="!(result.rows && result.rows.length)">
       <div *ngIf="isSummaryResult()" class="d-flex gap-3">

@@ -293,15 +293,71 @@ interface WhatsAppConfig {
             <div class="config-section">
               <h5>Configuración de Impresión</h5>
               
+              <!-- Selección de Impresora -->
+              <div class="card mb-3">
+                <div class="card-header">
+                  <i class="fas fa-cog me-2"></i>
+                  Configuración de Impresora
+                </div>
+                <div class="card-body">
+                  <form (ngSubmit)="savePrinterConfig()" #printerForm="ngForm">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <label class="form-label">Seleccionar Impresora *</label>
+                        <select class="form-select" 
+                                [(ngModel)]="selectedPrinter" 
+                                name="selectedPrinter"
+                                required>
+                          <option *ngFor="let printer of availablePrinters" 
+                                  [value]="printer">
+                            {{ printer }}
+                          </option>
+                        </select>
+                        <small class="form-text text-muted">
+                          Selecciona la impresora que usarás para imprimir tickets
+                        </small>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Impresión Automática</label>
+                        <div class="form-check">
+                          <input class="form-check-input" 
+                                 type="checkbox" 
+                                 [(ngModel)]="autoprintEnabled"
+                                 name="autoprintEnabled"
+                                 id="autoprintEnabled">
+                          <label class="form-check-label" for="autoprintEnabled">
+                            Imprimir automáticamente después del pago
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="form-actions mt-3">
+                      <button type="submit" 
+                              class="btn btn-primary"
+                              [disabled]="!printerForm.form.valid">
+                        <i class="fas fa-save me-2"></i>
+                        Guardar Configuración
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <!-- Pruebas de Impresión -->
               <div class="row">
                 <div class="col-md-6">
                   <div class="card">
                     <div class="card-header">
                       <i class="fas fa-receipt me-2"></i>
-                      Impresión Térmica
+                      Pruebas de Impresión Térmica
                     </div>
                     <div class="card-body">
-                      <p>Configure las opciones para impresoras térmicas de tickets.</p>
+                      <p class="mb-3">
+                        <strong>Impresora configurada:</strong> 
+                        <span class="badge bg-primary">{{ selectedPrinter }}</span>
+                      </p>
+                      <p>Prueba tu impresora térmica con diferentes métodos:</p>
                       <div class="d-flex gap-2 flex-wrap">
                         <button type="button" 
                                 class="btn btn-outline-primary btn-sm"
@@ -330,16 +386,18 @@ interface WhatsAppConfig {
                   <div class="card">
                     <div class="card-header">
                       <i class="fas fa-print me-2"></i>
-                      Impresión Normal
+                      Diagnóstico de Impresoras
                     </div>
                     <div class="card-body">
-                      <p>Configure las opciones para impresoras normales (A4).</p>
-                      <button type="button" 
-                              class="btn btn-outline-primary btn-sm"
-                              (click)="showAvailablePrinters()">
-                        <i class="fas fa-list me-2"></i>
-                        Ver Impresoras
-                      </button>
+                      <p>Herramientas para diagnosticar problemas de impresión:</p>
+                      <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" 
+                                class="btn btn-outline-info btn-sm"
+                                (click)="showAvailablePrinters()">
+                          <i class="fas fa-list me-2"></i>
+                          Ver Impresoras Detectadas
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -415,9 +473,25 @@ export class SettingsComponent implements OnInit {
 
   // Configuración de impresora legacy
   legacyPrinterName: string = 'DigitalPOS';
+  // legacyPrinterName: string = 'POS-80';
   autoprintEnabled: boolean = true;
   thermalPrinterName: string = '';
   thermalPaperWidth: number = 48;
+
+  // Lista de impresoras disponibles
+  availablePrinters: string[] = [
+    'POS-80C',
+    'EPSON TM-T20II Receipt',
+    'Generic / Text Only',
+    'Thermal Printer',
+    'POS Printer',
+    'Receipt Printer',
+    'DigitalPOS',
+    'POS-80'
+  ];
+
+  // Impresora seleccionada
+  selectedPrinter: string = 'DigitalPOS';
 
   // Configuración completa del sistema
   config = {
@@ -458,6 +532,7 @@ export class SettingsComponent implements OnInit {
    */
   private initializeDefaults(): void {
     this.legacyPrinterName = this.legacyPrinterName || 'DigitalPOS';
+    this.selectedPrinter = this.selectedPrinter || 'DigitalPOS';
     this.autoprintEnabled = this.autoprintEnabled ?? true;
     this.thermalPrinterName = this.thermalPrinterName || '';
     this.thermalPaperWidth = this.thermalPaperWidth || 48;
@@ -487,6 +562,7 @@ export class SettingsComponent implements OnInit {
     
     console.log('✅ Propiedades inicializadas:', {
       legacyPrinterName: this.legacyPrinterName,
+      selectedPrinter: this.selectedPrinter,
       autoprintEnabled: this.autoprintEnabled,
       config: this.config
     });
@@ -501,6 +577,7 @@ export class SettingsComponent implements OnInit {
       
       // Configuración legacy (con fallbacks)
       this.legacyPrinterName = appConfig.printer?.legacy?.printerName || this.legacyPrinterName || 'DigitalPOS';
+      this.selectedPrinter = appConfig.printer?.legacy?.printerName || this.selectedPrinter || 'DigitalPOS';
       this.autoprintEnabled = appConfig.postPayment?.autoprint ?? this.autoprintEnabled ?? true;
       this.thermalPrinterName = appConfig.printer?.thermal?.printerName || this.thermalPrinterName || '';
       this.thermalPaperWidth = appConfig.printer?.thermal?.paperWidth || this.thermalPaperWidth || 48;
@@ -556,10 +633,13 @@ export class SettingsComponent implements OnInit {
    */
   saveLegacyConfig(): void {
     try {
+      // Sincronizar la impresora seleccionada con el nombre legacy
+      this.legacyPrinterName = this.selectedPrinter.trim();
+      
       // Actualizar configuración de impresora
       this.configService.updatePrinterConfig({
         legacy: {
-          printerName: this.legacyPrinterName.trim(),
+          printerName: this.selectedPrinter.trim(),
           enabled: true
         },
         thermal: {
@@ -574,12 +654,13 @@ export class SettingsComponent implements OnInit {
 
       alert(
         `✅ CONFIGURACIÓN GUARDADA\n\n` +
-        `Impresora Legacy: ${this.legacyPrinterName.trim()}\n` +
+        `Impresora Seleccionada: ${this.selectedPrinter.trim()}\n` +
         `Impresión automática: ${this.autoprintEnabled ? 'Habilitada' : 'Deshabilitada'}\n\n` +
         `¡La configuración se aplicará en el próximo pago!`
       );
 
       console.log('✅ Configuración legacy guardada:', {
+        selectedPrinter: this.selectedPrinter.trim(),
         legacyPrinter: this.legacyPrinterName.trim(),
         autoprint: this.autoprintEnabled
       });
@@ -591,6 +672,13 @@ export class SettingsComponent implements OnInit {
   }
 
   /**
+   * Guarda la configuración de impresora seleccionada
+   */
+  savePrinterConfig(): void {
+    this.saveLegacyConfig();
+  }
+
+  /**
    * Guarda toda la configuración del sistema
    */
   saveConfig(): void {
@@ -599,7 +687,7 @@ export class SettingsComponent implements OnInit {
       const fullConfig: AppConfig = {
         printer: {
           legacy: {
-            printerName: this.legacyPrinterName.trim(),
+            printerName: this.selectedPrinter.trim(),
             enabled: true
           },
           thermal: {
@@ -625,7 +713,7 @@ export class SettingsComponent implements OnInit {
 
       alert(
         `✅ CONFIGURACIÓN COMPLETA GUARDADA\n\n` +
-        `✓ Impresora Legacy: ${this.legacyPrinterName.trim()}\n` +
+        `✓ Impresora Seleccionada: ${this.selectedPrinter.trim()}\n` +
         `✓ Impresión automática: ${this.autoprintEnabled ? 'Sí' : 'No'}\n` +
         `✓ Empresa: ${this.config.invoicing.companyName}\n` +
         `✓ WhatsApp: ${this.config.whatsapp.enabled ? 'Habilitado' : 'Deshabilitado'}\n\n` +
@@ -882,11 +970,12 @@ export class SettingsComponent implements OnInit {
         'Thermal Printer',
         'POS Printer',
         'Receipt Printer',
-        'DigitalPOS'
+        'DigitalPOS',
+        'POS-80'
       ];
       
       // Usar la impresora configurada o por defecto
-      const defaultPrinter = this.legacyPrinterName.trim() || defaultPrinters[6];
+      const defaultPrinter = this.selectedPrinter.trim() || this.legacyPrinterName.trim() || defaultPrinters[6];
       
       console.log('✅ Usando impresora configurada:', defaultPrinter);
       console.log('🏢 Datos de empresa configurados:', this.config.invoicing);
