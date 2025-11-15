@@ -1,0 +1,13 @@
+{
+  "name": "Test Production Mode",
+  "description": "Script para probar como funciona en modo producción",
+  "steps": [
+    "1. Detener el servidor de desarrollo (Ctrl+C en la terminal)",
+    "2. Construir la aplicación: npm run build:web:electron",
+    "3. Ejecutar sin variable de desarrollo: electron ./electron/main.js",
+    "4. Debería mostrar error de licencia y cerrarse",
+    "5. Instalar licencia desde la UI",
+    "6. Volver a ejecutar, debería funcionar normalmente"
+  ],
+  "license_code": "6a3792392b2a61df3451eb0f878c84965177107acedc15d4febaba8f9e366cc98b29e20b9d56a0c294b2eb233d805786df32e42ebdee386f998a02786decccfe21e0961ce8e3ad0f96a6ba372d6749ca72dd92058f8c08ad0b1feefab4eae8cd315528954f48fa113cbb11c9a396523e36a55daff646827f66f9b3d849e6faca221c8f1a7534d88410eea5182a872a0ac3645c86fce68d9a1f8f9566f0379e7b7d86076225823f2ae9b406ef7c4ab9b6bb611e5f33e3ef239a48da4c05af2c4f7143f8f281ddf80646df51b78753633a034c628a36d28d996cf954b103adaf32c909ac70477f63ed92b36855b78cf914a3b87566c2f8b491952f47ac64f60cd3"
+}

@@ -147,20 +147,30 @@ class PrintingService {
       const productLine = `${item.name.substring(0, charsPerLine - 10)}`;
       ticket += productLine + '\n';
       
-      const qtyPrice = `${item.quantity} x $${item.price.toLocaleString('es-CO')}`;
-      const total = `$${(item.price * item.quantity).toLocaleString('es-CO')}`;
+      // Usar precio real cobrado (con descuento aplicado) si está disponible
+      const realPrice = item.real_price || item.price;
+      const qtyPrice = `${item.quantity} x $${realPrice.toLocaleString('es-CO')}`;
+      const total = `$${(realPrice * item.quantity).toLocaleString('es-CO')}`;
       ticket += justifyText(qtyPrice, total) + '\n';
     });
     
     ticket += separator + '\n';
     
     // Totales
-    const subtotal = saleData.total / 1.19;
-    const iva = saleData.total - subtotal;
+    // Usar total real cobrado (con descuento aplicado)
+    const totalReal = saleData.total_with_discount || saleData.total;
+    const subtotal = totalReal / 1.19;
+    const iva = totalReal - subtotal;
     
     ticket += justifyText('Subtotal:', `$${subtotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`) + '\n';
     ticket += justifyText('IVA (19%):', `$${iva.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`) + '\n';
-    ticket += justifyText('TOTAL:', `$${saleData.total.toLocaleString('es-CO')}`) + '\n';
+    
+    // Mostrar descuento si existe
+    if (saleData.discount && saleData.discount > 0) {
+      ticket += justifyText('Descuento:', `-$${saleData.discount.toLocaleString('es-CO')}`) + '\n';
+    }
+    
+    ticket += justifyText('TOTAL:', `$${totalReal.toLocaleString('es-CO')}`) + '\n';
     
     ticket += separator + '\n';
     
@@ -314,29 +324,42 @@ class PrintingService {
             </tr>
         </thead>
         <tbody>
-            ${saleData.items.map(item => `
+            ${saleData.items.map(item => {
+                const realPrice = item.real_price || item.price;
+                return `
             <tr>
                 <td>${item.name}</td>
                 <td>${item.quantity}</td>
-                <td>$${item.price.toLocaleString('es-CO')}</td>
-                <td>$${(item.price * item.quantity).toLocaleString('es-CO')}</td>
+                <td>$${realPrice.toLocaleString('es-CO')}</td>
+                <td>$${(realPrice * item.quantity).toLocaleString('es-CO')}</td>
             </tr>
-            `).join('')}
+            `;
+            }).join('')}
         </tbody>
     </table>
     
     <div class="totals">
+        ${saleData.original_total && saleData.original_total !== saleData.total ? `
+        <div class="total-line">
+            <span>Subtotal Original:</span>
+            <span>$${(saleData.original_total / 1.19).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+        </div>
+        <div class="total-line">
+            <span>Descuento Aplicado:</span>
+            <span>-$${saleData.discount.toLocaleString('es-CO')}</span>
+        </div>
+        ` : ''}
         <div class="total-line">
             <span>Subtotal:</span>
-            <span>$${(saleData.total / 1.19).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+            <span>$${((saleData.total_with_discount || saleData.total) / 1.19).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
         </div>
         <div class="total-line">
             <span>IVA (19%):</span>
-            <span>$${(saleData.total * 0.19 / 1.19).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+            <span>$${(((saleData.total_with_discount || saleData.total) * 0.19) / 1.19).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
         </div>
         <div class="total-line total-final">
             <span>TOTAL A PAGAR:</span>
-            <span>$${saleData.total.toLocaleString('es-CO')}</span>
+            <span>$${(saleData.total_with_discount || saleData.total).toLocaleString('es-CO')}</span>
         </div>
     </div>
     
@@ -635,6 +658,28 @@ class PrintingService {
       console.log('Impresora:', printerName);
       console.log('Datos recibidos:', { saleData, clientData, invoiceData, paymentMethod });
       
+      // DEBUG: Logs detallados para verificar estructura de datos
+      console.log('🔍 DEBUG - Estructura completa de saleData:', JSON.stringify(saleData, null, 2));
+      console.log('🔍 DEBUG - Items detallados:');
+      if (saleData && saleData.items) {
+        saleData.items.forEach((item, index) => {
+          console.log(`  Item ${index}:`, {
+            name: item.name,
+            price: item.price,
+            real_price: item.real_price,
+            quantity: item.quantity,
+            total_item: item.price * item.quantity,
+            real_total_item: (item.real_price || item.price) * item.quantity
+          });
+        });
+      }
+      console.log('🔍 DEBUG - Totales en saleData:', {
+        total: saleData?.total,
+        total_with_discount: saleData?.total_with_discount,
+        discount: saleData?.discount,
+        original_total: saleData?.original_total
+      });
+      
       // Crear directorio temporal si no existe
       const tempDir = path.join(app.getPath('userData'), 'temp');
       if (!fs.existsSync(tempDir)) {
@@ -663,9 +708,13 @@ class PrintingService {
         email
       });
       
-      let subtotal = saleData.items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+      // Calcular totales usando precios reales cobrados (con descuento)
+      let subtotal = saleData.items.reduce((acc, item) => {
+        const realPrice = item.real_price || item.price;
+        return acc + (realPrice * item.quantity);
+      }, 0);
       let iva = subtotal * 0.19 / 1.19;
-      let total = subtotal;
+      let total = saleData.total_with_discount || subtotal;
 
       // Ancho máximo de caracteres (tu configuración)
       const anchoMaximo = 42;
@@ -707,18 +756,27 @@ Producto                 Cant.    Precio
 ${"-".repeat(anchoMaximo)}
 `;
 
-      // Agregar productos (usando tu formato)
+      // Agregar productos (usando precios reales cobrados)
       saleData.items.forEach((item) => {
         let nombre = item.name.length > 27 ? item.name.substring(0, 24) + "..." : item.name.padEnd(27, " ");
         let cantidad = item.quantity.toString().padEnd(2, " ");
-        let precio = `$${(item.price * item.quantity).toFixed(0)}`.padStart(12, " ");
+        const realPrice = item.real_price || item.price;
+        let precio = `$${(realPrice * item.quantity).toFixed(0)}`.padStart(12, " ");
         ticket += `${nombre}${cantidad}${precio}\n`;
       });
 
       ticket += `
 ${"-".repeat(anchoMaximo)}
 Subtotal:                       $${(subtotal/1.19).toFixed(0)}
-IVA (19%):                      $${iva.toFixed(0)}
+IVA (19%):                      $${iva.toFixed(0)}`;
+      
+      // Mostrar descuento si existe
+      if (saleData.discount && saleData.discount > 0) {
+        ticket += `
+Descuento:                     -$${saleData.discount.toFixed(0)}`;
+      }
+      
+      ticket += `
 ${"-".repeat(anchoMaximo)}
 TOTAL:                          $${total.toFixed(0)}
 ${"=".repeat(anchoMaximo)}

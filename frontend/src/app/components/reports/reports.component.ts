@@ -2,6 +2,7 @@ import { Component, ElementRef, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-reports',
@@ -22,7 +23,7 @@ export class ReportsComponent {
 
   @ViewChild('chartCanvas', { static: false }) chartCanvas!: ElementRef<HTMLCanvasElement>;
 
-  constructor(private electron: ElectronService) {}
+  constructor(private electron: ElectronService, private notificationService: NotificationService) {}
 
   async ngOnInit() {
     // Run the default tab on load
@@ -84,15 +85,6 @@ export class ReportsComponent {
     return this.result && !this.result.rows && (this.result.avgPerDay !== undefined || this.result.avgPerMonth !== undefined || this.result.avgPerYear !== undefined);
   }
 
-  formatCurrency(v: any) {
-    const n = Number(v || 0);
-    try {
-      return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-    } catch (e) {
-      return '$' + n.toFixed(0);
-    }
-  }
-
   formatNumber(v: any) {
     const n = Number(v || 0);
     try { return new Intl.NumberFormat('es-CO').format(n); } catch (e) { return String(n); }
@@ -149,7 +141,7 @@ export class ReportsComponent {
   // CSV export helper: expects rows array of objects
   async exportCsv(defaultName: string, rows: any[]) {
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
-      alert('No hay datos para exportar');
+      this.notificationService.warning('Sin Datos', 'No hay datos para exportar');
       return;
     }
     const keys = Object.keys(rows[0]);
@@ -166,7 +158,7 @@ export class ReportsComponent {
 
   async exportPdfFromRows(defaultName: string, rows: any[], title = 'Reporte') {
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
-      alert('No hay datos para exportar');
+      this.notificationService.warning('Sin Datos', 'No hay datos para exportar');
       return;
     }
     const keys = Object.keys(rows[0]);
@@ -175,9 +167,9 @@ export class ReportsComponent {
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>table{width:100%; border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;text-align:left}h1{font-size:18px}</style></head><body><h1>${title}</h1><p>Periodo: ${this.from} - ${this.to}</p><table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></body></html>`;
     const res = await this.electron.exportReportPdf(html, defaultName || 'report.pdf');
     if (res && res.success) {
-      alert('PDF guardado: ' + res.savedPath);
+      this.notificationService.success('PDF Guardado', 'PDF guardado: ' + res.savedPath);
     } else {
-      alert('No se guardó el PDF: ' + (res?.error || 'cancelado'));
+      this.notificationService.error('Error PDF', 'No se guardó el PDF: ' + (res?.error || 'cancelado'));
     }
   }
 
@@ -291,5 +283,227 @@ export class ReportsComponent {
       const text = String(lbl).length > 12 ? String(lbl).slice(0,12) + '…' : String(lbl);
       ctx.fillText(text, x, y);
     });
+  }
+
+  /**
+   * Verifica si el filtro actual es para el día de hoy
+   */
+  isDailyToday(): boolean {
+    const today = new Date().toISOString().slice(0, 10);
+    return this.from === today && this.to === today;
+  }
+
+  /**
+   * Genera el reporte de cierre de caja diario en PDF
+   */
+  async generateDailyClosure(): Promise<void> {
+    try {
+      console.log('🔐 Generando cierre de caja diario...');
+      
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await this.electron.getDailyClosure(today);
+      
+      if (result && result.success) {
+        console.log('✅ Cierre de caja obtenido exitosamente:', result);
+        
+        // Generar y descargar el PDF
+        await this.generateDailyClosurePDF(result);
+        
+        console.log('✅ PDF generado exitosamente');
+        this.notificationService.success('Cierre Exitoso', `Cierre de caja diario generado exitosamente para ${result.date}. ${result.summary.totalSales} ventas realizadas, ${result.products.length} productos vendidos. Total: ${this.formatCurrency(result.summary.totalRevenue)} (Descuentos: ${this.formatCurrency(result.summary.totalDiscounts)})`);
+      } else {
+        throw new Error(result?.error || 'Error al generar el cierre de caja');
+      }
+    } catch (error: any) {
+      console.error('❌ Error generando cierre de caja:', error);
+      this.notificationService.error('Error Cierre', `Error al generar el cierre de caja: ${error.message || error}. Por favor, intenta nuevamente.`);
+    }
+  }
+
+  private async generateDailyClosurePDF(data: any): Promise<void> {
+    try {
+      // Crear contenido HTML para el PDF
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cierre de Caja Diario - ${data.date}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .header h2 {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .summary {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-item .label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .summary-item .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .products-table th {
+            background-color: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        .products-table td {
+            padding: 10px;
+            border-bottom: 1px solid #bdc3c7;
+        }
+        .products-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .products-table tr:hover {
+            background-color: #e8f4fd;
+        }
+        .currency {
+            text-align: right;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 12px;
+            border-top: 1px solid #bdc3c7;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CIERRE DE CAJA DIARIO</h1>
+        <h2>DRT POS System</h2>
+        <p><strong>Fecha:</strong> ${new Date(data.date).toLocaleDateString('es-CO', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })}</p>
+    </div>
+
+    <div class="summary">
+        <h3>Resumen del Día</h3>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div class="label">Total de Ventas</div>
+                <div class="value">${data.summary.totalSales}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">Productos Vendidos</div>
+                <div class="value">${data.products.length}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">Ingresos Totales</div>
+                <div class="value">${this.formatCurrency(data.summary.totalRevenue)}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">Descuentos Aplicados</div>
+                <div class="value">${this.formatCurrency(data.summary.totalDiscounts)}</div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Detalle de Productos Vendidos</h3>
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Cantidad Vendida</th>
+                <th>Precio Unitario</th>
+                <th>Valor Real Pagado</th>
+                <th>Descuento Aplicado</th>
+                <th>Stock Disponible</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${data.products.map((product: any) => `
+            <tr>
+                <td>${product.productName}</td>
+                <td>${product.categoryName || 'Sin categoría'}</td>
+                <td style="text-align: center;">${product.quantitySold}</td>
+                <td class="currency">${this.formatCurrency(product.unitPrice)}</td>
+                <td class="currency">${this.formatCurrency(product.realAmountPaid)}</td>
+                <td class="currency">${this.formatCurrency(product.discountApplied)}</td>
+                <td style="text-align: center;">${product.currentStock}</td>
+            </tr>
+            `).join('')}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>Reporte generado el ${new Date().toLocaleString('es-CO')} por DRT POS System</p>
+        <p>Este documento contiene información confidencial de la empresa</p>
+    </div>
+</body>
+</html>`;
+
+      // Guardar el archivo HTML usando el servicio electron
+      const fileName = `cierre-caja-${data.date}.html`;
+      const result = await this.electron.saveTextFile(fileName, htmlContent, [
+        { name: 'HTML', extensions: ['html'] },
+        { name: 'Todos los archivos', extensions: ['*'] }
+      ]);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error al guardar el archivo');
+      }
+
+    } catch (error: any) {
+      console.error('Error generando PDF:', error);
+      throw new Error(`Error al generar el PDF: ${error.message || error}`);
+    }
+  }
+
+  formatCurrency(amount: number): string {
+    const n = Number(amount || 0);
+    try {
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+      }).format(n);
+    } catch (e) {
+      return '$' + n.toFixed(0);
+    }
   }
 }

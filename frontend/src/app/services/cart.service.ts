@@ -8,6 +8,7 @@ export interface CartItem {
   category_name: string;
   stock: number;
   quantity: number;
+  real_price?: number; // Precio real cobrado (con descuento aplicado)
 }
 
 export interface CartTab {

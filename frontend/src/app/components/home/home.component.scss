@@ -36,3 +36,31 @@
 .svg-cube-hover.pointer:hover {
   border-color: white !important;
 }
+
+// Estilos para el scroll del menú
+.menu-scroll-area {
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  }
+}
+
+// Asegurar que el menú use toda la altura disponible
+.menu-scroll-area {
+  max-height: calc(100vh - 80px); // Dejar espacio para el header
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+}

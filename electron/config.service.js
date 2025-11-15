@@ -7,9 +7,22 @@ const { app } = require('electron');
  */
 class ConfigService {
   constructor() {
-    this.configPath = path.join(__dirname, 'config.json');
-    this.userConfigPath = path.join(app.getPath('userData'), 'user-config.json');
-    this.config = this.loadConfig();
+    try {
+      this.configPath = path.join(__dirname, 'config.json');
+      this.userConfigPath = path.join(app.getPath('userData'), 'user-config.json');
+      
+      // Crear directorio userData si no existe
+      const userDataDir = path.dirname(this.userConfigPath);
+      if (!fs.existsSync(userDataDir)) {
+        fs.mkdirSync(userDataDir, { recursive: true });
+      }
+      
+      this.config = this.loadConfig();
+      console.log('✅ ConfigService inicializado correctamente');
+    } catch (error) {
+      console.error('❌ Error inicializando ConfigService:', error);
+      this.config = this.getMinimalConfig();
+    }
   }
 
   /**

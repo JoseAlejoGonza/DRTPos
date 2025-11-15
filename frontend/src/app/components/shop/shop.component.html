@@ -4,10 +4,38 @@
         <h3 class="text-primary text-left fw-bold fs-3">Punto de Venta</h3>
         <hr />
         <p>Aquí puedes gestionar las ventas y el inventario de productos.</p>
+        
+        <!-- Buscador de productos -->
+        <div class="search-container mb-3">
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-search"></i>
+            </span>
+            <input type="text" 
+                   class="form-control" 
+                   placeholder="Buscar productos por nombre (mín. 3 caracteres)..."
+                   [(ngModel)]="searchTerm" 
+                   (input)="onSearchChange()"
+                   #searchInput>
+            <button class="btn btn-outline-secondary" 
+                    type="button" 
+                    (click)="searchTerm = ''; onSearchChange(); searchInput.focus()" 
+                    *ngIf="searchTerm.length > 0"
+                    title="Limpiar búsqueda">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <small class="text-muted" *ngIf="searchTerm.length > 0 && searchTerm.length < 3">
+            Escribe al menos 3 caracteres para filtrar
+          </small>
+          <small class="text-success" *ngIf="searchTerm.length >= 3">
+            Mostrando {{ filteredProducts.length }} de {{ products.length }} productos
+          </small>
+        </div>
       </div>
       <div class="shop-grid-container">
         <div class="shop-grid">
-            <div *ngFor="let p of products" class="card m-2 shop-card">
+            <div *ngFor="let p of filteredProducts" class="card m-2 shop-card">
                <div class="card-image-container">
                   <img [src]="getImageSrc(p.imagen)" class="card-img" alt="{{p.name}}"/>
                </div>

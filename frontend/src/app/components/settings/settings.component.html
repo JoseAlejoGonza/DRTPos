@@ -33,6 +33,7 @@
                   type="text" 
                   class="form-control form-control-lg border-success" 
                   [(ngModel)]="legacyPrinterName"
+                  name="legacyPrinterName"
                   placeholder="DigitalPOS"
                   style="font-weight: bold; color: #28a745;">
               </div>
@@ -43,6 +44,7 @@
                     class="form-check-input" 
                     type="checkbox" 
                     [(ngModel)]="autoprintEnabled"
+                    name="autoprintEnabled"
                     id="autoprintCheck">
                   <label class="form-check-label" for="autoprintCheck">
                     <strong>Impresión automática después del pago</strong>
@@ -79,6 +81,7 @@
                   type="number" 
                   class="form-control" 
                   [(ngModel)]="thermalPaperWidth"
+                  name="thermalPaperWidth"
                   min="20" 
                   max="80"
                   placeholder="48">
@@ -89,6 +92,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="thermalPrinterName"
+                  name="thermalPrinterName"
                   placeholder="Nombre de la impresora térmica">
               </div>
               <button 
@@ -106,6 +110,7 @@
                   type="number" 
                   class="form-control" 
                   [(ngModel)]="config.normal.paperWidth"
+                  name="normalPaperWidth"
                   min="60" 
                   max="120"
                   placeholder="80">
@@ -116,6 +121,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="config.normal.printerName"
+                  name="normalPrinterName"
                   placeholder="Nombre de la impresora normal">
               </div>
               <button 
@@ -132,7 +138,7 @@
   </div>
 
   <!-- Configuración de Facturación Electrónica -->
-  <div class="row mb-4">
+  <!-- <div class="row mb-4">
     <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-header bg-success text-white">
@@ -150,6 +156,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="config.invoicing.companyNit"
+                  name="companyNit"
                   placeholder="123456789-0">
               </div>
               <div class="mb-3">
@@ -158,6 +165,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="config.invoicing.companyName"
+                  name="companyName"
                   placeholder="Mi Empresa SAS">
               </div>
               <div class="mb-3">
@@ -166,6 +174,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="config.invoicing.companyAddress"
+                  name="companyAddress"
                   placeholder="Calle 123 #45-67">
               </div>
             </div>
@@ -176,6 +185,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="config.invoicing.companyCity"
+                  name="companyCity"
                   placeholder="Bogotá">
               </div>
               <div class="mb-3">
@@ -184,6 +194,7 @@
                   type="text" 
                   class="form-control" 
                   [(ngModel)]="config.invoicing.companyPhone"
+                  name="companyPhone"
                   placeholder="601-234-5678">
               </div>
               <div class="mb-3">
@@ -192,6 +203,7 @@
                   type="email" 
                   class="form-control" 
                   [(ngModel)]="config.invoicing.companyEmail"
+                  name="companyEmail"
                   placeholder="facturacion@miempresa.com">
               </div>
             </div>
@@ -199,10 +211,10 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> -->
 
   <!-- Configuración de WhatsApp -->
-  <div class="row mb-4">
+  <!-- <div class="row mb-4">
     <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-header bg-success text-white">
@@ -219,6 +231,7 @@
                   class="form-check-input" 
                   type="checkbox" 
                   [(ngModel)]="config.whatsapp.enabled"
+                  name="whatsappEnabled"
                   id="whatsappEnabled">
                 <label class="form-check-label" for="whatsappEnabled">
                   Habilitar envío por WhatsApp
@@ -230,6 +243,7 @@
                   class="form-control" 
                   rows="3"
                   [(ngModel)]="config.whatsapp.defaultMessage"
+                  name="whatsappDefaultMessage"
                   placeholder="Hola! Te enviamos tu factura. Gracias por tu compra.">
                 </textarea>
               </div>
@@ -247,7 +261,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> -->
 
   
   <!-- Botones de Acción -->
@@ -292,6 +306,7 @@
           id="printerNameInput"
           type="text" 
           [(ngModel)]="printerName"
+          name="printerNameInput"
           placeholder="Ejm: POS-80C, EPSON TM-T20II Receipt"
           class="printer-input"
           (keyup.enter)="onPrinterDialogConfirm()">

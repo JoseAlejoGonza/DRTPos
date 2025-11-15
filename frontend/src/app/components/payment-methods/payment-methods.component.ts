@@ -6,6 +6,7 @@ import { PaymentService, PurchaseData, PaymentMethod } from '../../services/paym
 import { CartService } from '../../services/cart.service';
 import { ElectronService } from '../../services/electron.service';
 import { ConfigService } from '../../services/config.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-payment-methods',
@@ -46,14 +47,19 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
     registration_date: new Date().toISOString()
   };
 
-  // Propiedades para efectivo y vueltas (usando any para evitar problemas de ngModel)
-  cashReceived: any = 0;
-  changeAmount: any = 0;
+  // Propiedades para efectivo y vueltas
+  cashReceived: number = 0;
+  changeAmount: number = 0;
+
+  // Propiedades para descuento
+  discount: number = 0;
+  discountError: string = '';
 
   // Propiedades para desglose de totales
   subtotal: number = 0;
   ivaAmount: number = 0;
   total: number = 0;
+  originalTotal: number = 0;
 
   private subscriptions: Subscription[] = [];
 
@@ -61,7 +67,8 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
     private paymentService: PaymentService,
     private cartService: CartService,
     private electronService: ElectronService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private notificationService: NotificationService
   ) {
     // Inicialización forzada en constructor para evitar problemas de ngModel
     this.forceInitialization();
@@ -78,6 +85,8 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   private forceInitialization(): void {
     this.cashReceived = 0;
     this.changeAmount = 0;
+    this.discount = 0;
+    this.discountError = '';
     this.documentNumber = '';
     this.selectedDocumentType = 'CC';
     this.selectedPaymentMethod = '';
@@ -124,9 +133,11 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
     // Asegurar que los números estén inicializados
     this.cashReceived = this.cashReceived || 0;
     this.changeAmount = this.changeAmount || 0;
+    this.discount = this.discount || 0;
     this.subtotal = this.subtotal || 0;
     this.ivaAmount = this.ivaAmount || 0;
     this.total = this.total || 0;
+    this.originalTotal = this.originalTotal || 0;
     
     console.log('✅ Payment methods - Propiedades inicializadas:', {
       selectedDocumentType: this.selectedDocumentType,
@@ -206,6 +217,57 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Cierra el modal de forma suave después de un pago exitoso
+   */
+  softCloseModal(): void {
+    console.log('🔄 Cerrando modal de pago suavemente...');
+    
+    // Usar setTimeout para permitir que el DOM se estabilice
+    setTimeout(() => {
+      // Resetear formulario antes de cerrar
+      this.resetForm();
+      
+      // Cerrar el modal
+      this.paymentService.closePaymentModal();
+      
+      console.log('✅ Modal cerrado suavemente');
+    }, 100);
+  }
+
+  /**
+   * Resetea el formulario a su estado inicial
+   */
+  private resetForm(): void {
+    try {
+      this.selectedPaymentMethod = '';
+      this.discount = 0;
+      this.discountError = '';
+      this.cashReceived = 0;
+      this.changeAmount = 0;
+      this.requiresInvoice = false;
+      this.foundClient = null;
+      this.clientNotFound = false;
+      this.documentNumber = '';
+      this.isSearchingClient = false;
+      this.showClientForm = false;
+      
+      // Resetear objeto de nuevo cliente
+      this.newClient = {
+        document_type: 'CC',
+        document_number: '',
+        name: '',
+        phone_number: '',
+        email: '',
+        address: ''
+      };
+      
+      console.log('🧹 Formulario reseteado');
+    } catch (error) {
+      console.error('Error reseteando formulario:', error);
+    }
+  }
+
+  /**
    * Selecciona un método de pago
    */
   selectPaymentMethod(methodId: string): void {
@@ -225,20 +287,26 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
    */
   async confirmPayment(): Promise<void> {
     if (!this.selectedPaymentMethod || !this.purchaseData) {
-      alert('Por favor seleccione un método de pago');
+      this.notificationService.warning('Validación', 'Por favor seleccione un método de pago');
       return;
     }
 
     // Validar que si requiere factura, debe tener cliente
     if (this.requiresInvoice && !this.foundClient) {
-      alert('Para generar factura electrónica debe seleccionar un cliente');
+      this.notificationService.warning('Validación', 'Para generar factura electrónica debe seleccionar un cliente');
+      return;
+    }
+
+    // Validar descuento
+    if (!this.validateDiscount()) {
+      this.notificationService.warning('Error en Descuento', this.discountError);
       return;
     }
 
     // Validar efectivo si es el método seleccionado
     if (this.selectedPaymentMethod === 'cash') {
       if (this.cashReceived < this.total) {
-        alert('El monto recibido debe ser mayor o igual al total a pagar');
+        this.notificationService.warning('Validación', 'El monto recibido debe ser mayor o igual al total a pagar');
         return;
       }
     }
@@ -253,11 +321,40 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
         this.foundClient,
         {
           cashReceived: this.cashReceived,
-          changeAmount: this.changeAmount
+          changeAmount: this.changeAmount,
+          discount: this.discount,
+          originalTotal: this.originalTotal,
+          finalTotal: this.total
         }
       );
 
       console.log('Pago procesado:', result);
+
+      // Actualizar los datos de compra con el total final y campos de descuento para el recibo
+      if (this.purchaseData) {
+        // Actualizar totales y descuento
+        this.purchaseData.total = this.total; // Total con descuento aplicado
+        this.purchaseData.total_with_discount = this.total; // Total final cobrado
+        this.purchaseData.original_total = this.originalTotal; // Total original sin descuento
+        this.purchaseData.discount = this.discount; // Descuento aplicado
+        
+        // Actualizar cada item con el precio real cobrado (proporcional al descuento)
+        if (this.discount > 0 && this.purchaseData.items) {
+          const discountPercentage = this.discount / this.originalTotal;
+          this.purchaseData.items = this.purchaseData.items.map(item => ({
+            ...item,
+            real_price: item.price * (1 - discountPercentage) // Precio con descuento proporcional aplicado
+          }));
+        }
+        
+        console.log('🔍 DEBUG - purchaseData actualizado para impresión:', {
+          total: this.purchaseData.total,
+          total_with_discount: this.purchaseData.total_with_discount,
+          original_total: this.purchaseData.original_total,
+          discount: this.purchaseData.discount,
+          items_sample: this.purchaseData.items?.[0]
+        });
+      }
 
       // Mostrar opciones post-pago
       await this.showPostPaymentOptions(result);
@@ -265,12 +362,17 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
       // Limpiar el carrito después del pago exitoso
       this.cartService.clearActiveCart();
 
-      // Cerrar modal
-      this.closeModal();
+      // Notificar actualización del inventario con delay para evitar conflictos
+      setTimeout(() => {
+        this.paymentService.notifyInventoryRefresh();
+      }, 1000);
+
+      // Cerrar modal de forma suave
+      this.softCloseModal();
 
     } catch (error) {
       console.error('Error al procesar el pago:', error);
-      alert('Error al procesar el pago: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      this.notificationService.error('Error de Pago', 'Error al procesar el pago: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       this.isProcessing = false;
     }
@@ -281,22 +383,33 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
    */
   async showPostPaymentOptions(paymentResult: any): Promise<void> {
     const paymentMethod = this.paymentService.getPaymentMethod(this.selectedPaymentMethod);
-    const successMessage = `¡Pago procesado exitosamente!\n\nMétodo: ${paymentMethod?.name}\nMonto: ${paymentResult.amount.toLocaleString('es-CO', {style: 'currency', currency: 'COP'})}`;
+    const finalAmount = paymentResult.amount || this.total;
+    const discountMessage = this.discount > 0 ? `\nDescuento aplicado: ${this.discount.toLocaleString('es-CO', {style: 'currency', currency: 'COP'})}` : '';
+    const successMessage = `¡Pago procesado exitosamente!\n\nMétodo: ${paymentMethod?.name}\nTotal pagado: ${finalAmount.toLocaleString('es-CO', {style: 'currency', currency: 'COP'})}${discountMessage}`;
     
     if (this.requiresInvoice && paymentResult.invoice) {
-      alert(successMessage + '\n\n✓ Factura electrónica generada: ' + paymentResult.invoice.invoiceNumber);
+      this.notificationService.success(
+        'Pago Procesado Exitosamente',
+        `${successMessage}\n\n✓ Factura electrónica generada: ${paymentResult.invoice.invoiceNumber}`,
+        5000
+      );
 
       // Ofrecer descarga inmediata del PDF si existe
       try {
         const pdfPath = paymentResult.invoice.pdfPath || (paymentResult.invoice && paymentResult.invoice.url ? paymentResult.invoice.url : null);
         if (pdfPath) {
-          const wantsDownload = confirm('¿Desea descargar una copia del PDF de la factura ahora?');
+          const wantsDownload = await this.notificationService.confirm(
+            'Descargar Factura',
+            '¿Desea descargar una copia del PDF de la factura ahora?',
+            'Descargar',
+            'Más tarde'
+          );
           if (wantsDownload) {
             const saveRes = await this.electronService.saveFileCopy(pdfPath);
             if (saveRes && saveRes.success) {
-              alert('Copia guardada en: ' + saveRes.savedPath);
+              this.notificationService.success('Archivo Guardado', 'Copia guardada en: ' + saveRes.savedPath);
             } else {
-              alert('No se pudo guardar la copia: ' + (saveRes?.error || 'error desconocido'));
+              this.notificationService.error('Error de Guardado', 'No se pudo guardar la copia: ' + (saveRes?.error || 'error desconocido'));
             }
           }
         }
@@ -304,7 +417,11 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
         console.warn('Error tratando de ofrecer descarga del PDF:', err);
       }
     } else {
-      alert(successMessage);
+      this.notificationService.success(
+        'Pago Procesado Exitosamente',
+        successMessage,
+        4000
+      );
     }
 
     // Verificar configuración de impresión automática
@@ -315,14 +432,15 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
       // Impresión automática habilitada
       await this.executeAutomaticPrint(paymentResult);
     } else {
-      // Preguntar si quiere impresión automática o manual
-      const autoChoice = confirm(
+      // Preguntar si quiere impresión automática o manual usando notificación no bloqueante
+      const autoChoice = await this.notificationService.confirm(
+        'Pago Exitoso - Opciones de Impresión',
         `${successMessage}\n\n` +
         `🪄 ¿Desea IMPRIMIR AUTOMÁTICAMENTE con método exitoso?\n\n` +
         `✓ Impresora: ${legacyPrinter}\n` +
-        `✓ Imprime + Corta + Abre cajón\n\n` +
-        `Presione OK para IMPRIMIR AHORA\n` +
-        `Presione CANCELAR para más opciones`
+        `✓ Imprime + Corta + Abre cajón`,
+        'Imprimir Ahora',
+        'Más Opciones'
       );
 
       if (autoChoice) {
@@ -375,19 +493,24 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
       
       await this.electronService.printThermalLegacy(printData);
       
-      alert(
-        `✅ IMPRESIÓN AUTOMÁTICA COMPLETADA\n\n` +
+      this.notificationService.success(
+        'Impresión Automática Completada',
         `Impresora: ${legacyPrinter}\n\n` +
         `✓ Ticket impreso\n` +
         `✓ Papel cortado\n` +
         `✓ Cajón abierto\n\n` +
         `¡Venta completada exitosamente!\n\n` +
-        `🎯 SIGUIENTE VENTA LISTA`
+        `🎯 SIGUIENTE VENTA LISTA`,
+        6000
       );
       
     } catch (error) {
       console.error('Error en impresión automática:', error);
-      alert(`❌ Error en impresión automática: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      this.notificationService.error(
+        'Error en Impresión Automática',
+        `Error: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        5000
+      );
     }
   }
 
@@ -436,7 +559,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
       switch (action) {
         case '1':
           await this.electronService.showPrintDialog(printData);
-          alert('Diálogo de impresión abierto');
+          this.notificationService.info('Impresión', 'Diálogo de impresión abierto');
           break;
 
         case '2':
@@ -446,35 +569,35 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
               const invoiceGen = await this.electronService.generateElectronicInvoice({ saleData: this.purchaseData, clientData: this.foundClient });
               if (invoiceGen && invoiceGen.pdfPath) {
                 // Preguntar al usuario si desea guardar una copia
-                const save = confirm('PDF generado en el sistema. ¿Desea guardar una copia en otra ubicación?');
+                const save = await this.notificationService.confirm('PDF Generado', 'PDF generado en el sistema. ¿Desea guardar una copia en otra ubicación?', 'Guardar Copia', 'No Guardar');
                 if (save) {
                   const saveRes = await this.electronService.saveFileCopy(invoiceGen.pdfPath);
                   if (saveRes && saveRes.success) {
-                    alert('Copia guardada en: ' + saveRes.savedPath);
+                    this.notificationService.success('Copia Guardada', 'Copia guardada en: ' + saveRes.savedPath);
                   } else {
-                    alert('No se guardó la copia: ' + (saveRes?.error || 'Error desconocido'));
+                    this.notificationService.error('Error Copia', 'No se guardó la copia: ' + (saveRes?.error || 'Error desconocido'));
                   }
                 } else {
-                  alert('PDF generado en: ' + invoiceGen.pdfPath);
+                  this.notificationService.success('PDF Generado', 'PDF generado en: ' + invoiceGen.pdfPath);
                 }
               } else {
-                alert('No se pudo generar el PDF de la factura');
+                this.notificationService.error('Error PDF', 'No se pudo generar el PDF de la factura');
               }
             } else {
               // Para comprobantes no electrónicos, abrir diálogo de impresión y el usuario puede escoger "Guardar como PDF"
-              alert('Para exportar el comprobante a PDF, use la opción "Guardar como PDF" en el diálogo de impresión. Se abrirá el diálogo ahora.');
+              this.notificationService.info('Guardar PDF', 'Para exportar el comprobante a PDF, use la opción "Guardar como PDF" en el diálogo de impresión. Se abrirá el diálogo ahora.');
               await this.electronService.showPrintDialog(printData);
             }
           } catch (err) {
             console.error('Error generando/guardando PDF:', err);
-            alert('Error generando/guardando PDF: ' + (err instanceof Error ? err.message : String(err)));
+            this.notificationService.error('Error PDF', 'Error generando/guardando PDF: ' + (err instanceof Error ? err.message : String(err)));
           }
           break;
 
         case '3':
           const printers = await this.electronService.getAvailablePrinters();
           if (printers.thermal.length === 0) {
-            alert('No se encontraron impresoras térmicas');
+            this.notificationService.warning('Sin Impresoras', 'No se encontraron impresoras térmicas');
             break;
           }
 
@@ -504,7 +627,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
             ...printData,
             printerName: selectedPrinter
           });
-          alert('Impresión térmica enviada');
+          this.notificationService.success('Impresión Enviada', 'Impresión térmica enviada');
           break;
 
         case '4':
@@ -527,14 +650,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
             }
           });
           
-          alert(
-            `✅ MÉTODO EXITOSO COMPLETADO\n\n` +
-            `Impresora: ${legacyPrinterName}\n\n` +
-            `✓ Ticket impreso\n` +
-            `✓ Papel cortado\n` +
-            `✓ Cajón abierto\n\n` +
-            `¡Venta completada exitosamente!`
-          );
+          this.notificationService.success('Venta Completada', `Método exitoso completado. Impresora: ${legacyPrinterName}. Ticket impreso, papel cortado, cajón abierto. ¡Venta completada exitosamente!`);
           break;
 
         case '5':
@@ -546,7 +662,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
             'Impresoras Normales:',
             ...availablePrinters.normal.map((p: any) => `- ${p.name}`)
           ];
-          alert(printerList.join('\n'));
+          this.notificationService.info('Impresoras Disponibles', printerList.join('\n'));
           break;
 
         case '6':
@@ -556,7 +672,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error ejecutando acción post-pago:', error);
-      alert('Error: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      this.notificationService.error('Error', 'Error: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     }
   }
 
@@ -582,7 +698,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
    */
   async searchClient(): Promise<void> {
     if (!this.documentNumber.trim()) {
-      alert('Por favor ingrese el número de documento');
+      this.notificationService.warning('Campo Requerido', 'Por favor ingrese el número de documento');
       return;
     }
 
@@ -605,7 +721,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error al buscar cliente:', error);
-      alert('Error al buscar el cliente');
+      this.notificationService.error('Error Búsqueda', 'Error al buscar el cliente');
     } finally {
       this.isSearchingClient = false;
     }
@@ -649,29 +765,29 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   async createClient(): Promise<void> {
     // Validaciones
     if (!this.newClient.name.trim()) {
-      alert('El nombre completo es obligatorio');
+      this.notificationService.warning('Campo Requerido', 'El nombre completo es obligatorio');
       return;
     }
     if (!this.newClient.phone_number.trim()) {
-      alert('El número de teléfono es obligatorio');
+      this.notificationService.warning('Campo Requerido', 'El número de teléfono es obligatorio');
       return;
     }
     if (!this.newClient.email.trim()) {
-      alert('El correo electrónico es obligatorio');
+      this.notificationService.warning('Campo Requerido', 'El correo electrónico es obligatorio');
       return;
     }
 
     try {
       const result = await this.electronService.addClient(this.newClient);
       if (result) {
-        alert('Cliente creado exitosamente');
+        this.notificationService.success('Cliente Creado', 'Cliente creado exitosamente');
         this.foundClient = { ...this.newClient, id: result.lastInsertRowid };
         this.showClientForm = false;
         this.clientNotFound = false;
       }
     } catch (error) {
       console.error('Error al crear cliente:', error);
-      alert('Error al crear el cliente');
+      this.notificationService.error('Error Cliente', 'Error al crear el cliente');
     }
   }
 
@@ -681,6 +797,7 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   calculateTotals(): void {
     if (!this.purchaseData) return;
     
+    this.originalTotal = this.purchaseData.total; // Guardar total original
     this.total = this.purchaseData.total;
     this.ivaAmount = this.total * 0.19; // 19% IVA
     this.subtotal = this.total - this.ivaAmount;
@@ -690,13 +807,15 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
    * Calcula las vueltas cuando se ingresa dinero en efectivo
    */
   calculateChange(): void {
-    const cash = parseFloat(String(this.cashReceived)) || 0;
+    const cash = Number(this.cashReceived) || 0;
     const totalAmount = Number(this.total) || 0;
     
-    if (cash >= totalAmount) {
+    if (cash > totalAmount) {
       this.changeAmount = cash - totalAmount;
+    } else if (cash < totalAmount) {
+      this.changeAmount = cash - totalAmount; // Negativo para mostrar faltante
     } else {
-      this.changeAmount = 0;
+      this.changeAmount = 0; // Pago exacto
     }
     
     console.log('🔄 Cálculo de cambio:', {
@@ -709,13 +828,58 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
   /**
    * Se ejecuta cuando cambia el monto recibido en efectivo
    */
-  onCashReceivedChange(): void {
-    // Asegurar que sea un número válido
-    const numValue = parseFloat(this.cashReceived) || 0;
-    this.cashReceived = numValue;
+  onCashReceivedChange(event: any): void {
+    const value = parseFloat(event.target.value) || 0;
+    this.cashReceived = value;
+    this.calculateChange();
+    console.log('💰 Dinero recibido actualizado:', this.cashReceived);
+  }
+
+
+
+  /**
+   * Maneja cambios en el descuento
+   */
+  onDiscountChange(event: any): void {
+    const value = parseFloat(event.target.value) || 0;
+    
+    // Validar que el descuento no sea mayor al total original
+    if (value > this.originalTotal) {
+      this.discountError = 'El descuento no puede ser mayor al total';
+      return;
+    } else {
+      this.discountError = '';
+    }
+    
+    this.discount = value;
+    this.calculateTotalWithDiscount();
+    console.log('💸 Descuento actualizado:', this.discount);
+  }
+
+  /**
+   * Calcula el total con descuento aplicado
+   */
+  calculateTotalWithDiscount(): void {
+    this.total = Math.max(0, this.originalTotal - this.discount);
+    // Recalcular cambio si hay efectivo ingresado
     this.calculateChange();
     
-    console.log('💰 Dinero recibido actualizado:', this.cashReceived);
+    console.log('🧮 Total recalculado:', {
+      original: this.originalTotal,
+      descuento: this.discount,
+      nuevo_total: this.total
+    });
+  }
+
+  /**
+   * Valida el descuento antes de procesar el pago
+   */
+  validateDiscount(): boolean {
+    if (this.discount > 0 && this.discount < 500) {
+      this.discountError = 'El descuento mínimo es de $500';
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -747,6 +911,8 @@ export class PaymentMethodsComponent implements OnInit, OnDestroy {
     this.showClientForm = false;
     this.cashReceived = 0;
     this.changeAmount = 0;
+    this.discount = 0;
+    this.discountError = '';
     
     console.log('✅ Campos de cliente reseteados');
   }

@@ -83,6 +83,20 @@ try {
     db.prepare("ALTER TABLE sales ADD COLUMN payment_method TEXT").run();
     console.log('✅ Columna payment_method agregada a tabla sales');
   }
+  
+  // Verificar y agregar columnas de descuento
+  const hasDiscount = salesCols.find(col => col.name === 'discount');
+  const hasOriginalTotal = salesCols.find(col => col.name === 'original_total');
+  
+  if (!hasDiscount) {
+    db.prepare('ALTER TABLE sales ADD COLUMN discount REAL DEFAULT 0').run();
+    console.log('✅ Columna discount agregada a tabla sales');
+  }
+  
+  if (!hasOriginalTotal) {
+    db.prepare('ALTER TABLE sales ADD COLUMN original_total REAL DEFAULT 0').run();
+    console.log('✅ Columna original_total agregada a tabla sales');
+  }
 } catch (error) {
   console.error('❌ Error en migración de tabla sales:', error);
 }
@@ -122,9 +136,35 @@ db.prepare(`CREATE TABLE IF NOT EXISTS clients (
 
 // Adición para sales
 function addSale(sale) {
-  // Insert payment_method if provided (backwards compatible)
-  const stmt = db.prepare(`INSERT INTO sales (date_sale, total_sale, id_client, payment_method) VALUES (?, ?, ?, ?)`);
-  return stmt.run(sale.date_sale, sale.total_sale, sale.id_client || null, sale.payment_method || null);
+  // Verificar si las nuevas columnas existen
+  try {
+    const stmt = db.prepare(`INSERT INTO sales (date_sale, total_sale, original_total, discount, id_client, payment_method) VALUES (?, ?, ?, ?, ?, ?)`);
+    
+    // Asegurar valores numéricos válidos
+    const totalSale = parseFloat(sale.total_sale) || 0;
+    const originalTotal = parseFloat(sale.original_total) || totalSale;
+    const discount = parseFloat(sale.discount) || 0;
+    
+    console.log('💾 Guardando venta:', {
+      total_sale: totalSale,
+      original_total: originalTotal,
+      discount: discount
+    });
+    
+    return stmt.run(
+      sale.date_sale, 
+      totalSale,
+      originalTotal, 
+      discount, 
+      sale.id_client || null, 
+      sale.payment_method || null
+    );
+  } catch (error) {
+    // Fallback para bases de datos sin las nuevas columnas
+    console.log('⚠️ Usando formato legacy para sales');
+    const stmt = db.prepare(`INSERT INTO sales (date_sale, total_sale, id_client, payment_method) VALUES (?, ?, ?, ?)`);
+    return stmt.run(sale.date_sale, sale.total_sale, sale.id_client || null, sale.payment_method || null);
+  }
 }
 
 function getSales() {

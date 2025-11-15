@@ -167,3 +167,6 @@ $text-neutral: #dddd;
     background: linear-gradient(to bottom, lighten($primary, 15%), lighten($link-hover-color, 15%));
     // background-color: #cdd9dd;
 }
+.fs-4{
+  font-size: calc(1.275rem - 0.3vw) !important;
+}

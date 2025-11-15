@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { ProductsComponent } from './components/products/products.component';
 import { HomeComponent } from "./components/home/home.component";
 import { ProductNotFoundModalComponent } from './components/product-not-found-modal/product-not-found-modal.component';
+import { EmergencyFixComponent } from './components/emergency-fix/emergency-fix.component';
 import { BarcodeService } from './services/barcode.service';
 
 declare global {
@@ -11,7 +12,7 @@ declare global {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, HomeComponent, ProductNotFoundModalComponent],
+  imports: [RouterOutlet, HomeComponent, ProductNotFoundModalComponent, EmergencyFixComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

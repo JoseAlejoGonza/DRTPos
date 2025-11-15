@@ -34,15 +34,176 @@ function createWindow() {
       preload: path.join(__dirname, './preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false
-    }
+      webSecurity: false,
+      // Configuraciones para prevenir bloqueo de inputs
+      backgroundThrottling: false, // Evita throttling en background
+      offscreen: false, // Asegurar rendering normal
+      spellcheck: false, // Deshabilitar spellcheck que puede causar conflictos
+      enableRemoteModule: false,
+      sandbox: false
+    },
+    // Configuraciones adicionales de ventana
+    show: false, // No mostrar hasta que esté listo
+    titleBarStyle: 'default'
+  });
+
+  // Mostrar ventana cuando esté lista para prevenir problemas de rendering
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
+  // Prevenir bloqueos de input con eventos de focus
+  mainWindow.webContents.on('dom-ready', () => {
+    console.log('DOM Ready - Inyectando fix preventivo para inputs');
+    // Inyectar código para prevenir bloqueos de input
+    mainWindow.webContents.executeJavaScript(`
+      (function() {
+        console.log('🛡️ Aplicando sistema preventivo para inputs...');
+        
+        let fixInterval;
+        let inputObserver;
+        let isFixing = false;
+        
+        // Función de fix suave
+        function softInputFix() {
+          if (isFixing) return;
+          isFixing = true;
+          
+          try {
+            const inputs = document.querySelectorAll('input, textarea, select');
+            let blockedCount = 0;
+            
+            inputs.forEach((input, index) => {
+              if (input.disabled || input.readOnly) return;
+              
+              // Detectar inputs potencialmente bloqueados
+              const rect = input.getBoundingClientRect();
+              const isVisible = rect.width > 0 && rect.height > 0;
+              
+              if (isVisible) {
+                // Test rápido: intentar enfocar y desenfocar
+                const wasFocused = document.activeElement === input;
+                
+                if (!wasFocused) {
+                  input.focus();
+                  setTimeout(() => {
+                    if (document.activeElement !== input) {
+                      // Input posiblemente bloqueado
+                      blockedCount++;
+                      console.log('⚠️ Input posiblemente bloqueado detectado:', input);
+                      
+                      // Fix suave
+                      input.style.pointerEvents = 'none';
+                      setTimeout(() => {
+                        input.style.pointerEvents = '';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                      }, 10);
+                    } else {
+                      input.blur();
+                    }
+                  }, 5);
+                }
+              }
+            });
+            
+            if (blockedCount > 0) {
+              console.log('🔧 Detectados', blockedCount, 'inputs bloqueados - aplicando fix suave');
+            }
+            
+          } catch (error) {
+            console.error('Error en fix suave:', error);
+          } finally {
+            isFixing = false;
+          }
+        }
+        
+        // Fix preventivo deshabilitado temporalmente para evitar conflictos
+        // fixInterval = setInterval(softInputFix, 60000); // Reducido a cada minuto si se reactiva
+        
+        // Observer para nuevos inputs
+        function setupInputWatchers() {
+          const inputs = document.querySelectorAll('input, textarea, select');
+          inputs.forEach(input => {
+            if (input.dataset.fixWatcher) return; // Ya tiene watcher
+            
+            input.dataset.fixWatcher = 'true';
+            
+            // Watcher para detectar bloqueos
+            input.addEventListener('focus', function() {
+              this.dataset.lastFocus = Date.now().toString();
+            });
+            
+            input.addEventListener('click', function() {
+              this.dataset.lastClick = Date.now().toString();
+              
+              // Si click pero no focus después de 100ms, posible bloqueo
+              setTimeout(() => {
+                if (document.activeElement !== this) {
+                  console.log('🚨 Input bloqueado detectado en click:', this);
+                  this.focus();
+                }
+              }, 100);
+            });
+          });
+        }
+        
+        // Setup inicial
+        setupInputWatchers();
+        
+        // Observer para nuevos elementos
+        inputObserver = new MutationObserver(() => {
+          setTimeout(setupInputWatchers, 100);
+        });
+        
+        inputObserver.observe(document.body, { 
+          childList: true, 
+          subtree: true 
+        });
+        
+        // Teclas de emergencia
+        document.addEventListener('keydown', function(e) {
+          // F5 - Reload
+          if (e.key === 'F5') {
+            location.reload();
+          }
+          
+          // Ctrl+Shift+F - Fix manual rápido
+          if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+            e.preventDefault();
+            console.log('🔧 Fix manual activado por teclado');
+            softInputFix();
+          }
+        });
+        
+        // Cleanup al salir
+        window.addEventListener('beforeunload', () => {
+          if (fixInterval) clearInterval(fixInterval);
+          if (inputObserver) inputObserver.disconnect();
+        });
+        
+        console.log('✅ Sistema preventivo de inputs activado');
+      })();
+    `);
   });
 
   if (isDev) {
     mainWindow.loadURL(process.env.ELECTRON_START_URL || 'http://localhost:4200');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../frontend/dist/frontend/index.html'));
+    // Verificar si existe el build de producción
+    const prodPath = path.join(__dirname, '../frontend/dist/frontend/browser/index.html');
+    const altProdPath = path.join(__dirname, '../frontend/dist/frontend/index.html');
+    
+    if (require('fs').existsSync(prodPath)) {
+      mainWindow.loadFile(prodPath);
+    } else if (require('fs').existsSync(altProdPath)) {
+      mainWindow.loadFile(altProdPath);
+    } else {
+      console.error('No se encontró el build de producción. Ejecutar: npm run build');
+      // Como fallback, intentar cargar desde el servidor de desarrollo
+      mainWindow.loadURL('http://localhost:4200');
+    }
   }
 
   mainWindow.on('closed', () => {
@@ -141,7 +302,9 @@ ipcMain.handle('payment:process', async (event, paymentData) => {
     // 1. Crear la venta
     const saleResult = await db.addSale({
       date_sale: new Date().toISOString(),
-      total_sale: saleData.total,
+      total_sale: saleData.total, // Total con descuento
+      original_total: saleData.originalTotal || saleData.total,
+      discount: saleData.discount || 0,
       id_client: clientData ? clientData.id : null,
       payment_method: paymentMethod || null
     });
@@ -277,12 +440,26 @@ ipcMain.handle('invoice:generateElectronic', async (event, data) => {
 ipcMain.handle('reports:salesSummary', (event, { from, to }) => {
   try {
     const ivaRate = (invoicingConfig && invoicingConfig.ivaRate) ? invoicingConfig.ivaRate : 0.19;
-    const stmt = db.db.prepare('SELECT total_sale, date_sale FROM sales WHERE date_sale BETWEEN ? AND ?');
+    const stmt = db.db.prepare('SELECT total_sale, original_total, discount, date_sale FROM sales WHERE date_sale BETWEEN ? AND ?');
     const rows = stmt.all(from, to);
-    const totalGross = rows.reduce((s, r) => s + (r.total_sale || 0), 0);
+    
+    console.log('📊 Datos de salesSummary:', { from, to, rowCount: rows.length, sampleRow: rows[0] });
+    
+    const totalGross = rows.reduce((s, r) => s + (parseFloat(r.total_sale) || 0), 0);
+    const totalOriginal = rows.reduce((s, r) => s + (parseFloat(r.original_total) || parseFloat(r.total_sale) || 0), 0);
+    const totalDiscount = rows.reduce((s, r) => s + (parseFloat(r.discount) || 0), 0);
     const taxes = totalGross * ivaRate / (1 + ivaRate);
     const totalNet = totalGross - taxes;
-    return { success: true, totalGross, taxes, totalNet, count: rows.length };
+    
+    return { 
+      success: true, 
+      totalGross: Math.round(totalGross * 100) / 100, 
+      totalOriginal: Math.round(totalOriginal * 100) / 100,
+      totalDiscount: Math.round(totalDiscount * 100) / 100,
+      taxes: Math.round(taxes * 100) / 100, 
+      totalNet: Math.round(totalNet * 100) / 100, 
+      count: rows.length 
+    };
   } catch (error) {
     console.error('Error reports:salesSummary', error);
     return { success: false, error: error.message || String(error) };
@@ -302,8 +479,10 @@ ipcMain.handle('reports:salesByRange', (event, { from, to, granularity }) => {
       return { success: true, rows: stmt.all(from, to) };
     }
 
-    const stmt = db.db.prepare(`SELECT ${groupExpr} as period, COUNT(*) as count_sales, SUM(total_sale) as total FROM sales WHERE date_sale BETWEEN ? AND ? GROUP BY period ORDER BY period`);
-    return { success: true, rows: stmt.all(from, to) };
+    const stmt = db.db.prepare(`SELECT ${groupExpr} as period, COUNT(*) as count_sales, SUM(COALESCE(total_sale, 0)) as total, SUM(COALESCE(original_total, total_sale, 0)) as original_total, SUM(COALESCE(discount, 0)) as total_discount FROM sales WHERE date_sale BETWEEN ? AND ? GROUP BY period ORDER BY period`);
+    const rows = stmt.all(from, to);
+    console.log('📊 salesByRange rows:', rows.slice(0, 3));
+    return { success: true, rows };
   } catch (error) {
     console.error('Error reports:salesByRange', error);
     return { success: false, error: error.message || String(error) };
@@ -313,7 +492,37 @@ ipcMain.handle('reports:salesByRange', (event, { from, to, granularity }) => {
 ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
   try {
     // make join robust: cast ds.id_product to integer in case it was stored as text
-    const stmt = db.db.prepare(`SELECT p.id as productId, p.name as productName, p.price as unitPrice, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0)) as quantitySold, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) as totalSales FROM detail_sales ds JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) JOIN sales s ON s.id = ds.id_sale WHERE s.date_sale BETWEEN ? AND ? GROUP BY p.id, p.name, p.price ORDER BY quantitySold DESC`);
+    // Obtener ventas reales con descuentos proporcionales
+    const stmt = db.db.prepare(`
+      SELECT 
+        p.id as productId, 
+        p.name as productName, 
+        p.price as unitPrice,
+        SUM(COALESCE(CAST(ds.quantity AS INTEGER),0)) as quantitySold,
+        SUM(COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) as originalSales,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) * 
+              (COALESCE(s.total_sale, 0) / COALESCE(s.original_total, s.total_sale))
+            ELSE COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)
+          END
+        ) as totalSales,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) * 
+              (COALESCE(s.discount, 0) / COALESCE(s.original_total, s.total_sale))
+            ELSE 0
+          END
+        ) as totalDiscount
+      FROM detail_sales ds 
+      JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) 
+      JOIN sales s ON s.id = ds.id_sale 
+      WHERE s.date_sale BETWEEN ? AND ? 
+      GROUP BY p.id, p.name, p.price 
+      ORDER BY quantitySold DESC
+    `);
     const rows = stmt.all(from, to);
     console.log('📊 [reports:salesByProduct] from=', from, 'to=', to, 'rows=', Array.isArray(rows) ? rows.length : 0, 'sample=', (rows && rows[0]) ? rows[0] : null);
     return { success: true, rows };
@@ -326,7 +535,36 @@ ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
 ipcMain.handle('reports:salesByCategory', (event, { from, to }) => {
   try {
     // cast ds.id_product to integer to match products.id and coalesce numeric fields
-    const stmt = db.db.prepare(`SELECT c.id as categoryId, c.name as categoryName, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) as totalSales, SUM(COALESCE(CAST(ds.quantity AS INTEGER),0)) as quantitySold FROM detail_sales ds JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) LEFT JOIN categories c ON p.category_id = c.id JOIN sales s ON s.id = ds.id_sale WHERE s.date_sale BETWEEN ? AND ? GROUP BY c.id, c.name ORDER BY totalSales DESC`);
+    // Obtener ventas por categoría con valores reales
+    const stmt = db.db.prepare(`
+      SELECT 
+        c.id as categoryId, 
+        c.name as categoryName,
+        SUM(COALESCE(CAST(ds.quantity AS INTEGER),0)) as quantitySold,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) * 
+              (COALESCE(s.total_sale, 0) / COALESCE(s.original_total, s.total_sale))
+            ELSE COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)
+          END
+        ) as totalSales,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER),0) * COALESCE(p.price,0)) * 
+              (COALESCE(s.discount, 0) / COALESCE(s.original_total, s.total_sale))
+            ELSE 0
+          END
+        ) as totalDiscount
+      FROM detail_sales ds 
+      JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) 
+      LEFT JOIN categories c ON p.category_id = c.id 
+      JOIN sales s ON s.id = ds.id_sale 
+      WHERE s.date_sale BETWEEN ? AND ? 
+      GROUP BY c.id, c.name 
+      ORDER BY totalSales DESC
+    `);
     const rows = stmt.all(from, to);
     console.log('📊 [reports:salesByCategory] from=', from, 'to=', to, 'rows=', Array.isArray(rows) ? rows.length : 0, 'sample=', (rows && rows[0]) ? rows[0] : null);
     return { success: true, rows };
@@ -363,6 +601,117 @@ ipcMain.handle('reports:frequency', (event, { from, to }) => {
     return { success: true, count, avgPerDay, avgPerMonth, avgPerYear };
   } catch (error) {
     console.error('Error reports:frequency', error);
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+// Handler específico para reportes de descuentos
+ipcMain.handle('reports:discounts', (event, { from, to }) => {
+  try {
+    const stmt = db.db.prepare(`
+      SELECT 
+        date_sale,
+        original_total,
+        total_sale,
+        discount,
+        payment_method,
+        ROUND((discount / original_total) * 100, 2) as discount_percentage
+      FROM sales 
+      WHERE date_sale BETWEEN ? AND ? 
+        AND discount > 0 
+      ORDER BY date_sale DESC
+    `);
+    const rows = stmt.all(from, to);
+    
+    // Estadísticas de descuentos
+    const totalDiscounts = rows.reduce((s, r) => s + (r.discount || 0), 0);
+    const avgDiscount = rows.length > 0 ? totalDiscounts / rows.length : 0;
+    const maxDiscount = rows.length > 0 ? Math.max(...rows.map(r => r.discount || 0)) : 0;
+    const salesWithDiscount = rows.length;
+    
+    return { 
+      success: true, 
+      rows,
+      stats: {
+        totalDiscounts,
+        avgDiscount,
+        maxDiscount,
+        salesWithDiscount
+      }
+    };
+  } catch (error) {
+    console.error('Error reports:discounts', error);
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+// Handler para cierre de caja diario
+ipcMain.handle('reports:dailyClosure', async (event, { date }) => {
+  try {
+    const from = `${date}T00:00:00`;
+    const to = `${date}T23:59:59`;
+    
+    // Obtener datos detallados de ventas del día
+    const stmt = db.db.prepare(`
+      SELECT 
+        p.name as productName,
+        c.name as categoryName,
+        SUM(COALESCE(CAST(ds.quantity AS INTEGER), 0)) as quantitySold,
+        p.price as unitPrice,
+        p.stock as currentStock,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.price, 0)) * 
+              (COALESCE(s.total_sale, 0) / COALESCE(s.original_total, s.total_sale))
+            ELSE COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.price, 0)
+          END
+        ) as realAmountPaid,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.price, 0)) * 
+              (COALESCE(s.discount, 0) / COALESCE(s.original_total, s.total_sale))
+            ELSE 0
+          END
+        ) as discountApplied
+      FROM detail_sales ds
+      JOIN products p ON p.id = CAST(ds.id_product AS INTEGER)
+      LEFT JOIN categories c ON p.category_id = c.id
+      JOIN sales s ON s.id = ds.id_sale
+      WHERE s.date_sale BETWEEN ? AND ?
+      GROUP BY p.id, p.name, c.name, p.price, p.stock
+      ORDER BY realAmountPaid DESC
+    `);
+    
+    const products = stmt.all(from, to);
+    
+    // Resumen general del día
+    const summaryStmt = db.db.prepare(`
+      SELECT 
+        COUNT(*) as totalSales,
+        SUM(COALESCE(total_sale, 0)) as totalRevenue,
+        SUM(COALESCE(discount, 0)) as totalDiscounts,
+        SUM(COALESCE(original_total, total_sale, 0)) as originalTotal
+      FROM sales 
+      WHERE date_sale BETWEEN ? AND ?
+    `);
+    
+    const summary = summaryStmt.get(from, to);
+    
+    return {
+      success: true,
+      date,
+      products,
+      summary: {
+        totalSales: summary.totalSales || 0,
+        totalRevenue: Math.round((summary.totalRevenue || 0) * 100) / 100,
+        totalDiscounts: Math.round((summary.totalDiscounts || 0) * 100) / 100,
+        originalTotal: Math.round((summary.originalTotal || 0) * 100) / 100
+      }
+    };
+  } catch (error) {
+    console.error('Error reports:dailyClosure', error);
     return { success: false, error: error.message || String(error) };
   }
 });
@@ -511,5 +860,427 @@ ipcMain.handle('reports:exportPdf', async (event, { html, defaultName }) => {
   } catch (error) {
     console.error('Error reports:exportPdf', error);
     return { success: false, error: error.message || String(error) };
+  }
+});
+
+// ============================================================================
+// BACKUP HANDLERS
+// ============================================================================
+
+// Handler para obtener estadísticas de backup
+ipcMain.handle('backup:getStats', async () => {
+  try {
+    const fs = require('fs');
+    const dbPath = path.join(app.getPath('userData'), 'pos.db');
+    
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: 'Database file not found at: ' + dbPath };
+    }
+    
+    const stats = fs.statSync(dbPath);
+    return {
+      success: true,
+      stats: {
+        size: stats.size,
+        modified: stats.mtime,
+        created: stats.ctime,
+        path: dbPath
+      }
+    };
+  } catch (error) {
+    console.error('Error backup:getStats', error);
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+// Handler para crear backup
+ipcMain.handle('backup:create', async () => {
+  try {
+    const fs = require('fs');
+    const dbPath = path.join(app.getPath('userData'), 'pos.db');
+    
+    if (!fs.existsSync(dbPath)) {
+      return { success: false, error: 'Database file not found at: ' + dbPath };
+    }
+    
+    // Pedir ruta al usuario para guardar el backup
+    const { canceled, filePath: destPath } = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), {
+      defaultPath: `backup-${new Date().toISOString().slice(0, 10)}.db`,
+      filters: [
+        { name: 'Database files', extensions: ['db'] },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    });
+    
+    if (canceled || !destPath) {
+      return { success: false, error: 'Backup cancelled by user' };
+    }
+    
+    // Copiar el archivo de base de datos
+    await fs.promises.copyFile(dbPath, destPath);
+    
+    return {
+      success: true,
+      backupPath: destPath,
+      message: 'Backup created successfully'
+    };
+  } catch (error) {
+    console.error('Error backup:create', error);
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+// Handler para restaurar backup
+ipcMain.handle('backup:restore', async () => {
+  try {
+    const fs = require('fs');
+    const dbPath = path.join(app.getPath('userData'), 'pos.db');
+    
+    // Pedir al usuario que seleccione el archivo de backup
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+      title: 'Seleccionar archivo de backup',
+      filters: [
+        { name: 'Database files', extensions: ['db'] },
+        { name: 'All files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    });
+    
+    if (canceled || filePaths.length === 0) {
+      return { success: false, error: 'Restore cancelled by user' };
+    }
+    
+    const backupPath = filePaths[0];
+    
+    // Verificar que el archivo de backup existe
+    if (!fs.existsSync(backupPath)) {
+      return { success: false, error: 'Backup file not found' };
+    }
+    
+    // Crear backup de la base de datos actual antes de restaurar
+    const currentBackupPath = path.join(app.getPath('userData'), `pos_backup_before_restore_${Date.now()}.db`);
+    if (fs.existsSync(dbPath)) {
+      await fs.promises.copyFile(dbPath, currentBackupPath);
+    }
+    
+    // Restaurar la base de datos desde el backup
+    await fs.promises.copyFile(backupPath, dbPath);
+    
+    return {
+      success: true,
+      restoredFrom: backupPath,
+      currentBackupPath: currentBackupPath,
+      message: 'Backup restored successfully. Previous database backed up to: ' + currentBackupPath
+    };
+  } catch (error) {
+    console.error('Error backup:restore', error);
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+// SISTEMA DE FIX PARA INPUTS BLOQUEADOS
+ipcMain.handle('system:fixInputs', async () => {
+  try {
+    console.log('🔧 Aplicando fix de emergencia para inputs bloqueados...');
+    
+    if (!mainWindow) return { success: false, error: 'Ventana principal no disponible' };
+    
+    // Inyectar fix de emergencia específico para Angular
+    const result = await mainWindow.webContents.executeJavaScript(`
+      (function() {
+        console.log('🚨 EJECUTANDO FIX DE EMERGENCIA ANGULAR PARA INPUTS');
+        
+        try {
+          // 1. Buscar inputs en todos los contextos posibles
+          const allInputs = [];
+          
+          // Buscar en document principal
+          document.querySelectorAll('input, textarea, select').forEach(input => allInputs.push(input));
+          
+          // Buscar en shadow DOM si existe
+          document.querySelectorAll('*').forEach(el => {
+            if (el.shadowRoot) {
+              el.shadowRoot.querySelectorAll('input, textarea, select').forEach(input => allInputs.push(input));
+            }
+          });
+          
+          // Buscar inputs específicos de Angular
+          const angularSelectors = [
+            'input[formcontrolname]',
+            'input[ng-model]', 
+            'input[ngModel]',
+            'input[_ngcontent-ng-c]',
+            'input.form-control',
+            'textarea[formcontrolname]',
+            'textarea[ng-model]',
+            'textarea[ngModel]',
+            'select[formcontrolname]',
+            'select[ng-model]',
+            'select[ngModel]'
+          ];
+          
+          angularSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(input => {
+              if (!allInputs.includes(input)) {
+                allInputs.push(input);
+              }
+            });
+          });
+          
+          console.log('🔍 Encontrados', allInputs.length, 'inputs totales para procesar');
+          
+          if (allInputs.length === 0) {
+            console.log('⚠️ No se encontraron inputs - posible problema de renderizado');
+            // Forzar re-render completo
+            document.body.style.visibility = 'hidden';
+            document.body.offsetHeight;
+            document.body.style.visibility = 'visible';
+            
+            // Volver a buscar después del re-render
+            setTimeout(() => {
+              const newInputs = document.querySelectorAll('input, textarea, select');
+              console.log('🔄 Después de re-render encontrados:', newInputs.length, 'inputs');
+            }, 100);
+          }
+          
+          // 2. Fix agresivo para cada input
+          allInputs.forEach((input, index) => {
+            if (input.disabled || input.readOnly) {
+              console.log('⏭️ Saltando input deshabilitado:', index);
+              return;
+            }
+            
+            console.log('🔧 Procesando input', index, ':', {
+              tag: input.tagName,
+              type: input.type,
+              id: input.id,
+              className: input.className,
+              value: input.value,
+              visible: input.offsetWidth > 0 && input.offsetHeight > 0
+            });
+            
+            const currentValue = input.value;
+            const isActive = document.activeElement === input;
+            
+            // Reset completo del input
+            try {
+              // 1. Desconectar completamente
+              input.blur();
+              input.style.pointerEvents = 'none';
+              input.readOnly = true;
+              
+              setTimeout(() => {
+                // 2. Reconectar paso a paso
+                input.readOnly = false;
+                input.style.pointerEvents = '';
+                
+                // 3. Restaurar valor
+                if (input.value !== currentValue) {
+                  input.value = currentValue;
+                }
+                
+                // 4. Crear y disparar eventos sintéticos
+                const events = ['focus', 'input', 'change', 'keyup', 'blur'];
+                events.forEach((eventType, eventIndex) => {
+                  setTimeout(() => {
+                    const event = new Event(eventType, { 
+                      bubbles: true, 
+                      cancelable: true,
+                      composed: true 
+                    });
+                    input.dispatchEvent(event);
+                  }, eventIndex * 10);
+                });
+                
+                // 5. Forzar focus si era el activo
+                if (isActive) {
+                  setTimeout(() => {
+                    input.focus();
+                    input.click(); // Click adicional para asegurar activación
+                  }, 100);
+                }
+                
+                // 6. Hack específico para Angular: trigger change detection
+                setTimeout(() => {
+                  if (input.ng) {
+                    // Si tiene referencia de Angular, forzar update
+                    try {
+                      input.ng.detectChanges();
+                    } catch (e) {
+                      console.log('No se pudo forzar detectChanges en input', index);
+                    }
+                  }
+                  
+                  // Disparar evento personalizado para Angular
+                  input.dispatchEvent(new CustomEvent('ngModelChange', {
+                    detail: { value: currentValue },
+                    bubbles: true
+                  }));
+                  
+                }, 150);
+                
+              }, 50 + (index * 10));
+              
+            } catch (inputError) {
+              console.error('Error procesando input', index, ':', inputError);
+            }
+          });
+          
+          // 3. Fix global de Angular después de procesar inputs
+          setTimeout(() => {
+            console.log('🔄 Aplicando fix global de Angular...');
+            
+            try {
+              // Disparar eventos globales para forzar re-render
+              window.dispatchEvent(new Event('resize'));
+              window.dispatchEvent(new Event('orientationchange'));
+              
+              // Forzar click en diferentes elementos para restaurar event listeners
+              const clickTargets = [document.body, document.documentElement];
+              clickTargets.forEach(target => {
+                if (target) {
+                  const clickEvent = new MouseEvent('click', { bubbles: true });
+                  target.dispatchEvent(clickEvent);
+                }
+              });
+              
+              // Intentar acceder a Angular si está disponible globalmente
+              if (window.ng) {
+                try {
+                  const appRoot = document.querySelector('app-root');
+                  if (appRoot && window.ng.getComponent) {
+                    const component = window.ng.getComponent(appRoot);
+                    if (component && component.constructor) {
+                      console.log('🅰️ Componente Angular encontrado:', component.constructor.name);
+                    }
+                  }
+                } catch (ngError) {
+                  console.log('No se pudo acceder a Angular global:', ngError.message);
+                }
+              }
+              
+              console.log('✅ Fix de emergencia Angular completado');
+              
+            } catch (globalError) {
+              console.error('Error en fix global:', globalError);
+            }
+            
+          }, 1000);
+          
+          return 'Fix Angular aplicado - ' + allInputs.length + ' inputs procesados';
+          
+        } catch (error) {
+          console.error('❌ Error crítico en fix de emergencia:', error);
+          return 'Error crítico: ' + error.message;
+        }
+      })();
+    `);
+    
+    console.log('✅ Fix de emergencia aplicado exitosamente');
+    return { 
+      success: true, 
+      message: 'Fix de emergencia aplicado. Los inputs deberían funcionar normalmente.' 
+    };
+    
+  } catch (error) {
+    console.error('❌ Error aplicando fix de emergencia:', error);
+    return { 
+      success: false, 
+      error: 'Error aplicando fix: ' + (error.message || error) 
+    };
+  }
+});
+
+ipcMain.handle('system:forceReload', async () => {
+  try {
+    if (mainWindow) {
+      mainWindow.reload();
+      return { success: true, message: 'Aplicación reiniciada' };
+    }
+    return { success: false, error: 'Ventana no disponible' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('system:resetAngular', async () => {
+  try {
+    console.log('🔄 Reiniciando Angular componentes...');
+    
+    if (!mainWindow) return { success: false, error: 'Ventana principal no disponible' };
+    
+    const result = await mainWindow.webContents.executeJavaScript(`
+      (function() {
+        console.log('🅰️ REINICIO COMPLETO DE ANGULAR');
+        
+        try {
+          // 1. Limpiar todos los timers y observers
+          const highestId = setTimeout(() => {}, 1);
+          for (let i = 0; i < highestId; i++) {
+            clearTimeout(i);
+            clearInterval(i);
+          }
+          
+          // 2. Forzar garbage collection de eventos
+          document.querySelectorAll('*').forEach(el => {
+            if (el.cloneNode) {
+              const newEl = el.cloneNode(true);
+              if (el.parentNode && el.tagName !== 'HTML' && el.tagName !== 'BODY') {
+                try {
+                  el.parentNode.replaceChild(newEl, el);
+                } catch (e) {
+                  // Si falla, continuar con el siguiente
+                }
+              }
+            }
+          });
+          
+          // 3. Forzar recarga suave del DOM
+          const body = document.body;
+          const html = body.innerHTML;
+          body.innerHTML = '';
+          setTimeout(() => {
+            body.innerHTML = html;
+            
+            // 4. Restaurar focus y eventos después de recrear DOM
+            setTimeout(() => {
+              const inputs = document.querySelectorAll('input, textarea, select');
+              console.log('🔧 Reactivando', inputs.length, 'inputs después de reset');
+              
+              inputs.forEach((input, index) => {
+                if (input.disabled || input.readOnly) return;
+                
+                // Activación forzada
+                setTimeout(() => {
+                  input.focus();
+                  setTimeout(() => input.blur(), 10);
+                }, index * 10);
+              });
+              
+              console.log('✅ Reset completo de Angular finalizado');
+            }, 500);
+            
+          }, 100);
+          
+          return 'Angular reset completado';
+          
+        } catch (error) {
+          console.error('Error en reset de Angular:', error);
+          return 'Error en reset: ' + error.message;
+        }
+      })();
+    `);
+    
+    return { 
+      success: true, 
+      message: 'Reset de Angular completado: ' + result 
+    };
+    
+  } catch (error) {
+    console.error('❌ Error en reset de Angular:', error);
+    return { 
+      success: false, 
+      error: 'Error en reset: ' + (error.message || error) 
+    };
   }
 });

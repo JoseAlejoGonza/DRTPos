@@ -1,13 +1,22 @@
 {
   "name": "drtpos",
   "version": "1.0.0",
+  "description": "Sistema de Punto de Venta - DRT POS",
+  "author": "DRT Solutions SAS",
   "main": "electron/main.js",
   "scripts": {
     "ng:serve": "cd frontend && ng serve",
     "electron:serve": "cross-env ELECTRON_START_URL=http://localhost:4200 electron ./electron/main.js",
     "dev": "concurrently \"npm run ng:serve\" \"npm run electron:serve\"",
     "build:web": "cd frontend && ng build --configuration production",
-    "build:electron": "npm run build:web && electron-builder"
+    "build:web:electron": "cd frontend && ng build --configuration electron",
+    "build:electron": "npm run build:web:electron && electron-builder --publish=never",
+    "build:electron:no-sign": "npm run build:web:electron && electron-builder --publish=never --config.win.signAndEditExecutable=false --config.compression=store",
+    "build:portable": "npm run build:web:electron && electron-builder --win portable --publish=never",
+    "dist:simple": "npm run build:web && electron-builder --win dir --publish=never",
+    "build:folder-only": "npm run build:web:electron && electron-builder --win dir --publish=never",
+    "clean:cache": "if exist node_modules\\.cache rmdir /s /q node_modules\\.cache & if exist frontend\\node_modules\\.cache rmdir /s /q frontend\\node_modules\\.cache",
+    "clean:all": "if exist release rmdir /s /q release & if exist node_modules\\.cache rmdir /s /q node_modules\\.cache & if exist frontend\\node_modules\\.cache rmdir /s /q frontend\\node_modules\\.cache"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
@@ -17,8 +26,8 @@
     "wait-on": "^8.0.5"
   },
   "build": {
-    "appId": "com.tuempresa.pos",
-    "productName": "POS DRT",
+    "appId": "com.drtpos.app",
+    "productName": "DRT POS",
     "files": [
       "frontend/dist/frontend/**/*",
       "electron/**/*",
@@ -28,7 +37,7 @@
       "output": "release"
     },
     "win": {
-      "target": "nsis"
+      "target": "dir"
     }
   },
   "dependencies": {

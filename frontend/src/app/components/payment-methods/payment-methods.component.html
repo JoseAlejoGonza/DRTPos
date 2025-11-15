@@ -69,11 +69,12 @@
       </div>
 
       <!-- Opción de Factura Electrónica -->
-      <div class="invoice-section">
+      <!-- <div class="invoice-section">
         <div class="form-check">
           <input class="form-check-input" 
                  type="checkbox" 
                  id="requiresInvoice"
+                 name="requiresInvoice"
                  [(ngModel)]="requiresInvoice">
           <label class="form-check-label" for="requiresInvoice">
             <i class="fas fa-file-invoice me-2"></i>
@@ -84,7 +85,6 @@
           *La factura electrónica se enviará al correo electrónico registrado
         </small>
 
-        <!-- Búsqueda de Cliente (solo si requiere factura) -->
         <div class="client-search-section" *ngIf="requiresInvoice">
           <h6 class="section-subtitle">
             <i class="fas fa-user me-2"></i>
@@ -108,13 +108,13 @@
                 <input type="text" 
                        class="form-control" 
                        id="documentNumber"
+                       name="documentNumber"
                        [(ngModel)]="documentNumber"
                        (ngModelChange)="onDocumentChange()"
                        placeholder="Ingrese el número de documento"
                        (keyup.enter)="searchClient()">
               </div>
               <div class="col-md-2">
-                <!-- <label class="form-label">&nbsp;</label> -->
                 <button type="button" 
                         class="btn btn-primary d-block w-100"
                         (click)="searchClient()"
@@ -127,7 +127,6 @@
             </div>
           </div>
 
-          <!-- Cliente encontrado -->
           <div class="client-found" *ngIf="foundClient">
             <div class="alert alert-success">
               <h6><i class="fas fa-check-circle me-2"></i>Cliente Encontrado</h6>
@@ -140,7 +139,6 @@
             </div>
           </div>
 
-          <!-- Cliente no encontrado -->
           <div class="client-not-found" *ngIf="clientNotFound">
             <div class="alert alert-warning">
               <h6><i class="fas fa-exclamation-triangle me-2"></i>Cliente no encontrado</h6>
@@ -154,7 +152,6 @@
             </div>
           </div>
 
-          <!-- Formulario de creación de cliente -->
           <div class="client-form-modal" *ngIf="showClientForm">
             <div class="client-form-content">
               <div class="form-header">
@@ -181,6 +178,7 @@
                     <input type="text" 
                            class="form-control" 
                            [(ngModel)]="newClient.document_number"
+                           name="newClientDocumentNumber"
                            placeholder="Número de documento">
                   </div>
                 </div>
@@ -191,6 +189,7 @@
                     <input type="text" 
                            class="form-control" 
                            [(ngModel)]="newClient.name"
+                           name="newClientName"
                            placeholder="Nombre completo del cliente">
                   </div>
                 </div>
@@ -201,6 +200,7 @@
                     <input type="text" 
                            class="form-control" 
                            [(ngModel)]="newClient.phone_number"
+                           name="newClientPhoneNumber"
                            (ngModelChange)="onPhoneChange()"
                            placeholder="Número de teléfono"
                            maxlength="15">
@@ -210,6 +210,7 @@
                     <input type="email" 
                            class="form-control" 
                            [(ngModel)]="newClient.email"
+                           name="newClientEmail"
                            placeholder="correo@ejemplo.com">
                   </div>
                 </div>
@@ -242,7 +243,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <!-- Métodos de Pago -->
       <div class="payment-methods-section">
@@ -277,24 +278,81 @@
               <h6><i class="fas fa-money-bill-wave me-2"></i>Pago en Efectivo</h6>
               <p>El cliente pagará en efectivo al momento de la entrega o en punto de venta.</p>
               
+              <!-- Campo de Descuento -->
+              <div class="discount-section mb-3">
+                <label class="form-label">Descuento Aplicado (Opcional):</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number"
+                        name="discountAmount"
+                        class="form-control" 
+                        [value]="discount"
+                        (input)="onDiscountChange($event)"
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                        [class.is-invalid]="discountError">
+                </div>
+                <div class="invalid-feedback" *ngIf="discountError">
+                  {{ discountError }}
+                </div>
+                <small class="text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Si aplica descuento, debe ser mínimo $500
+                </small>
+              </div>
+
               <!-- Calculadora de vueltas -->
               <div class="cash-calculator">
                 <div class="row">
                   <div class="col-md-6">
-                    <label class="form-label">Total a Pagar:</label>
+                    <label class="form-label">Total Original:</label>
                     <input type="text" 
-                           class="form-control" 
-                           [value]="total | currency"
+                           class="form-control text-muted" 
+                           [value]="originalTotal | currency"
+                           name="originalTotal"
                            readonly>
                   </div>
                   <div class="col-md-6">
+                    <label class="form-label">
+                      Total a Pagar:
+                      <span *ngIf="discount > 0" class="text-success">
+                        (con descuento)
+                      </span>
+                    </label>
+                    <input type="text" 
+                           class="form-control fw-bold" 
+                           [value]="total | currency"
+                           name="totalToPay"
+                           readonly>
+                  </div>
+                </div>
+                <div class="row mt-2">
+                  <div class="col-md-6" *ngIf="discount > 0">
+                    <small class="text-success">
+                      <i class="fas fa-tag me-1"></i>
+                      Descuento aplicado: {{ discount | currency }}
+                    </small>
+                  </div>
+                  <div class="col-md-6"></div>
+                </div>
+                <div class="row mt-2">
+                  <div class="col-md-6"></div>
+                  <div class="col-md-6">
                     <label class="form-label">Dinero Recibido:</label>
-                    <input type="number"
-                          name="ammountReceived"
-                          class="form-control" 
-                          [(ngModel)]="cashReceived"
-                          (ngModelChange)="onCashReceivedChange()"
-                          >
+                    <div class="input-group">
+                      <span class="input-group-text">$</span>
+                      <input type="number"
+                            name="amountReceived"
+                            class="form-control" 
+                            [value]="cashReceived"
+                            (input)="onCashReceivedChange($event)"
+                            placeholder="0"
+                            step="0.01"
+                            min="0"
+                            #cashInput>
+                    </div>
+                    <small class="text-muted">Ejemplo: 50000 o 50.000</small>
                   </div>
                 </div>
                 

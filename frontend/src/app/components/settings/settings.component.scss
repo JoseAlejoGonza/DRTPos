@@ -427,3 +427,126 @@
     transform: translateY(0) scale(1);
   }
 }
+
+// Estilos específicos para la pestaña de backup
+.config-section {
+  .stat-item {
+    text-align: center;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    border-left: 4px solid #007bff;
+    
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #007bff;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 0.9rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  .card {
+    border: 1px solid #e3e6ea;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    
+    .card-header {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: white;
+      font-weight: 600;
+      border: none;
+      
+      i {
+        opacity: 0.9;
+      }
+    }
+    
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+      transition: all 0.3s ease;
+    }
+  }
+  
+  .alert {
+    border: none;
+    border-radius: 10px;
+    
+    &.alert-info {
+      background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+      color: #0c5460;
+      border-left: 4px solid #17a2b8;
+    }
+    
+    &.alert-warning {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+      color: #856404;
+      border-left: 4px solid #ffc107;
+    }
+    
+    &.alert-success {
+      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+      color: #155724;
+      border-left: 4px solid #28a745;
+    }
+    
+    &.alert-danger {
+      background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+      color: #721c24;
+      border-left: 4px solid #dc3545;
+    }
+  }
+  
+  .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+    
+    &.btn-success {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: none;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      }
+    }
+    
+    &.btn-outline-danger {
+      border: 2px solid #dc3545;
+      color: #dc3545;
+      
+      &:hover {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+      }
+    }
+    
+    &.btn-outline-primary {
+      border: 2px solid #007bff;
+      color: #007bff;
+      
+      &:hover {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+      }
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+}

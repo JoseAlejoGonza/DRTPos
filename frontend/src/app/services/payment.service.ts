@@ -8,6 +8,10 @@ export interface PurchaseData {
   total: number;
   items: CartItem[];
   timestamp: Date;
+  // Campos para manejo de descuentos
+  total_with_discount?: number; // Total final cobrado (con descuento aplicado)
+  original_total?: number; // Total original sin descuento
+  discount?: number; // Monto del descuento aplicado
 }
 
 export interface PaymentMethod {
@@ -24,9 +28,11 @@ export interface PaymentMethod {
 export class PaymentService {
   private showPaymentModalSubject = new BehaviorSubject<boolean>(false);
   private purchaseDataSubject = new BehaviorSubject<PurchaseData | null>(null);
+  private refreshInventorySubject = new BehaviorSubject<boolean>(false);
 
   public showPaymentModal$ = this.showPaymentModalSubject.asObservable();
   public purchaseData$ = this.purchaseDataSubject.asObservable();
+  public refreshInventory$ = this.refreshInventorySubject.asObservable();
 
   // Métodos de pago disponibles
   public paymentMethods: PaymentMethod[] = [
@@ -89,6 +95,13 @@ export class PaymentService {
   }
 
   /**
+   * Notifica que se debe actualizar el inventario
+   */
+  notifyInventoryRefresh(): void {
+    this.refreshInventorySubject.next(true);
+  }
+
+  /**
    * Obtiene los datos actuales de compra
    */
   getCurrentPurchaseData(): PurchaseData | null {
@@ -115,9 +128,12 @@ export class PaymentService {
       });
 
       // Preparar datos para el backend
+      const finalTotal = additionalData?.finalTotal || purchaseData.total;
       const paymentData = {
         saleData: {
-          total: purchaseData.total,
+          total: finalTotal, // Usar el total con descuento
+          originalTotal: additionalData?.originalTotal || purchaseData.total,
+          discount: additionalData?.discount || 0,
           items: purchaseData.items,
           timestamp: new Date().toISOString()
         },
@@ -134,7 +150,9 @@ export class PaymentService {
         success: true,
         paymentMethodId,
         transactionId: this.generateTransactionId(),
-        amount: purchaseData.total,
+        amount: finalTotal, // Usar el total con descuento
+        originalAmount: additionalData?.originalTotal || purchaseData.total,
+        discount: additionalData?.discount || 0,
         requiresInvoice,
         processedAt: new Date(),
         saleId: result.saleId,

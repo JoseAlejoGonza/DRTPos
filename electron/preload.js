@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('api', {
   getSalesByCategory: (from, to) => ipcRenderer.invoke('reports:salesByCategory', { from, to }),
   getTaxSummary: (from, to) => ipcRenderer.invoke('reports:taxSummary', { from, to }),
   getFrequency: (from, to) => ipcRenderer.invoke('reports:frequency', { from, to }),
+  getDailyClosure: (date) => ipcRenderer.invoke('reports:dailyClosure', { date }),
   exportReportPdf: (html, defaultName) => ipcRenderer.invoke('reports:exportPdf', { html, defaultName }),
 
   // Configuración
@@ -89,5 +90,22 @@ contextBridge.exposeInMainWorld('api', {
   togglePaymentMethod: (methodId, enabled) => ipcRenderer.invoke('config:togglePaymentMethod', { methodId, enabled }),
   resetConfig: () => ipcRenderer.invoke('config:reset'),
   exportConfig: () => ipcRenderer.invoke('config:export'),
-  importConfig: (configJson) => ipcRenderer.invoke('config:import', configJson)
+  importConfig: (configJson) => ipcRenderer.invoke('config:import', configJson),
+
+  // Licencias
+  validateLicense: () => ipcRenderer.invoke('license:validate'),
+  getHardwareInfo: () => ipcRenderer.invoke('license:getHardwareInfo'),
+  installLicense: (encryptedLicense) => ipcRenderer.invoke('license:install', encryptedLicense),
+  checkLicenseStatus: () => ipcRenderer.invoke('license:checkStatus'),
+
+  // Backup y Restauración
+  createBackup: () => ipcRenderer.invoke('backup:create'),
+  restoreBackup: () => ipcRenderer.invoke('backup:restore'),
+  verifyBackup: (filePath) => ipcRenderer.invoke('backup:verify', filePath),
+  getBackupStats: () => ipcRenderer.invoke('backup:getStats'),
+
+  // Sistema - Fix para inputs bloqueados
+  fixInputs: () => ipcRenderer.invoke('system:fixInputs'),
+  forceReload: () => ipcRenderer.invoke('system:forceReload'),
+  resetAngular: () => ipcRenderer.invoke('system:resetAngular')
 });

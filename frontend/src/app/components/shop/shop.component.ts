@@ -7,6 +7,7 @@ import { PaymentMethodsComponent } from '../payment-methods/payment-methods.comp
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-shop',
@@ -17,6 +18,8 @@ import { Subscription } from 'rxjs';
 })
 export class ShopComponent implements OnInit, OnDestroy {
   products: any[] = [];
+  filteredProducts: any[] = [];
+  searchTerm: string = '';
   carts: CartTab[] = [];
   activeCart: CartTab | null = null;
   activeTabId: string = '';
@@ -27,7 +30,8 @@ export class ShopComponent implements OnInit, OnDestroy {
     private electronService: ElectronService,
     private cartService: CartService,
     private paymentService: PaymentService,
-    private barcodeService: BarcodeService
+    private barcodeService: BarcodeService,
+    private notificationService: NotificationService
   ) {}
 
   async ngOnInit() {
@@ -60,12 +64,21 @@ export class ShopComponent implements OnInit, OnDestroy {
       this.activeCart = this.cartService.getActiveCart();
     });
 
-    this.subscriptions.push(cartsSubscription, activeTabSubscription);
+    // Suscribirse a actualizaciones de inventario
+    const refreshInventorySubscription = this.paymentService.refreshInventory$.subscribe(shouldRefresh => {
+      if (shouldRefresh) {
+        console.log('🔄 Actualizando inventario suavemente después del pago...');
+        this.softRefreshProducts();
+      }
+    });
+
+    this.subscriptions.push(cartsSubscription, activeTabSubscription, refreshInventorySubscription);
   }
 
   async loadProducts() {
     this.electronService.getProducts().then((products: any) => {
       this.products = products;
+      this.filteredProducts = products; // Inicializar productos filtrados
       console.log(this.products);
     });
   }
@@ -83,6 +96,19 @@ export class ShopComponent implements OnInit, OnDestroy {
    */
   getStockClass(stock: number): string {
     return stock > 3 ? 'stock-high' : 'stock-low';
+  }
+
+  /**
+   * Filtra productos por nombre después del tercer carácter
+   */
+  onSearchChange(): void {
+    if (this.searchTerm.length >= 3) {
+      this.filteredProducts = this.products.filter(product => 
+        product.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+      );
+    } else {
+      this.filteredProducts = this.products; // Mostrar todos si menos de 3 caracteres
+    }
   }
 
   // ============ MÉTODOS DEL CARRITO USANDO EL SERVICIO ============
@@ -104,9 +130,10 @@ export class ShopComponent implements OnInit, OnDestroy {
   /**
    * Elimina una pestaña específica
    */
-  deleteTab(tabId: string, event: Event): void {
+  async deleteTab(tabId: string, event: Event): Promise<void> {
     event.stopPropagation(); // Evitar que se active la pestaña al cerrarla
-    if (confirm('¿Estás seguro de que quieres eliminar esta cotización?')) {
+    const confirmed = await this.notificationService.confirm('Eliminar Cotización', '¿Estás seguro de que quieres eliminar esta cotización?');
+    if (confirmed) {
       this.cartService.deleteTab(tabId);
     }
   }
@@ -118,9 +145,9 @@ export class ShopComponent implements OnInit, OnDestroy {
     const success = this.cartService.addToActiveCart(product);
     if (!success) {
       if (product.stock <= 0) {
-        alert('Producto sin stock disponible');
+        this.notificationService.warning('Sin Stock', 'Producto sin stock disponible');
       } else {
-        alert('No hay suficiente stock disponible');
+        this.notificationService.warning('Stock Insuficiente', 'No hay suficiente stock disponible');
       }
     }
   }
@@ -139,15 +166,16 @@ export class ShopComponent implements OnInit, OnDestroy {
           item.quantity = originalItem.quantity;
         }
       }
-      alert('Cantidad no válida o excede el stock disponible');
+      this.notificationService.warning('Cantidad Inválida', 'Cantidad no válida o excede el stock disponible');
     }
   }
 
   /**
    * Elimina un producto del carrito
    */
-  removeFromCart(item: CartItem): void {
-    if (confirm('¿Eliminar este producto del carrito?')) {
+  async removeFromCart(item: CartItem): Promise<void> {
+    const confirmed = await this.notificationService.confirm('Eliminar Producto', '¿Eliminar este producto del carrito?');
+    if (confirmed) {
       this.cartService.removeFromActiveCart(item.id);
     }
   }
@@ -165,7 +193,7 @@ export class ShopComponent implements OnInit, OnDestroy {
   processPurchase(): void {
     const activeCart = this.cartService.getActiveCart();
     if (!activeCart || activeCart.items.length === 0) {
-      alert('No hay productos para procesar');
+      this.notificationService.warning('Sin Productos', 'No hay productos para procesar');
       return;
     }
 
@@ -182,16 +210,59 @@ export class ShopComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Actualización suave de productos que no interfiere con inputs
+   */
+  async softRefreshProducts(): Promise<void> {
+    try {
+      console.log('🔄 Iniciando actualización suave de productos...');
+      
+      // Usar setTimeout para no bloquear el hilo principal
+      setTimeout(async () => {
+        try {
+          // Guardar estado actual de búsqueda si existe
+          const currentSearchTerm = this.searchTerm || '';
+          
+          // Cargar productos en background
+          const products = await this.electronService.getProducts();
+          
+          // Actualizar sin afectar inputs
+          if (products) {
+            this.products = products;
+            
+            // Reaplicar filtro de búsqueda si existía
+            if (currentSearchTerm) {
+              this.filteredProducts = products.filter((product: any) => 
+                product.name.toLowerCase().includes(currentSearchTerm.toLowerCase())
+              );
+            } else {
+              this.filteredProducts = products;
+            }
+            
+            console.log('✅ Productos actualizados suavemente:', products.length);
+          }
+        } catch (error) {
+          console.error('Error en actualización suave:', error);
+          // Si falla la actualización suave, no hacer nada para no romper la UX
+        }
+      }, 500); // Delay pequeño para que el modal se cierre primero
+      
+    } catch (error) {
+      console.error('Error iniciando actualización suave:', error);
+    }
+  }
+
+  /**
    * Cancela/limpia la cotización activa
    */
-  cancelCart(): void {
+  async cancelCart(): Promise<void> {
     const activeCart = this.cartService.getActiveCart();
     if (!activeCart) return;
 
     if (activeCart.items.length > 0) {
-      if (confirm(`¿Estás seguro de que quieres cancelar la cotización "${activeCart.name}"?`)) {
+      const confirmed = await this.notificationService.confirm('Cancelar Cotización', `¿Estás seguro de que quieres cancelar la cotización "${activeCart.name}"?`);
+      if (confirmed) {
         this.cartService.clearActiveCart();
-        alert('Cotización cancelada');
+        this.notificationService.info('Cotización Cancelada', 'Cotización cancelada');
       }
     }
   }

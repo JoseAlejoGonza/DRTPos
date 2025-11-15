@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { ElectronService } from '../../services/electron.service';
 import { BarcodeService } from '../../services/barcode.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-add-products',
@@ -36,7 +37,8 @@ export class AddProductsComponent implements OnInit {
   constructor(
     private electronService: ElectronService,
     private route: ActivatedRoute,
-    private barcodeService: BarcodeService
+    private barcodeService: BarcodeService,
+    private notificationService: NotificationService
   ) {}
 
   onImageInputChange(value: string) {
@@ -103,10 +105,13 @@ export class AddProductsComponent implements OnInit {
   }
   async openFilePicker() {
     // El 'path' solo está disponible en Electron
-    const filePath = await this.electronService.openImageDialog();  
-    if (filePath) {
+    const result = await this.electronService.openImageDialog();  
+    if (result && result.success && result.filePath) {
       // 2. Si se selecciona un archivo, guarda la ruta real
-      this.product.image = filePath; 
+      this.product.image = result.filePath;
+      this.archivoSeleccionado = result.filePath;
+    } else {
+      console.log('No se seleccionó archivo o hubo error:', result);
     }
   }
 
@@ -117,7 +122,7 @@ export class AddProductsComponent implements OnInit {
 
   async saveProduct() {
     if (!this.product.name || this.product.price <= 0 || this.product.stock < 1 || !this.product.category_id || !this.product.color) {
-      alert('Nombre, precio, cantidad, color y categoría son obligatorios');
+      this.notificationService.warning('Campos Obligatorios', 'Nombre, precio, cantidad, color y categoría son obligatorios');
       return;
     }
     if(this.archivoSeleccionado !== '') {
@@ -203,7 +208,7 @@ export class AddProductsComponent implements OnInit {
       const existingProduct = await this.electronService.getProductByCode(this.product.code.trim());
       
       if (existingProduct && existingProduct.id !== this.product.id) {
-        alert(`Este código ya está asignado al producto: ${existingProduct.name}`);
+        this.notificationService.warning('Código Duplicado', `Este código ya está asignado al producto: ${existingProduct.name}`);
         this.product.code = '';
       }
     } catch (error) {

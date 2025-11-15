@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
 import { ConfigService, AppConfig } from '../../services/config.service';
+import { NotificationService } from '../../services/notification.service';
 
 interface CompanyConfig {
   name: string;
@@ -53,7 +54,7 @@ interface WhatsAppConfig {
               <i class="fas fa-building me-2"></i>
               Empresa
             </button>
-            <button class="nav-link" 
+            <!-- <button class="nav-link" 
                     [class.active]="activeTab === 'invoicing'"
                     (click)="activeTab = 'invoicing'" 
                     type="button">
@@ -66,13 +67,20 @@ interface WhatsAppConfig {
                     type="button">
               <i class="fab fa-whatsapp me-2"></i>
               WhatsApp
-            </button>
+            </button> -->
             <button class="nav-link" 
                     [class.active]="activeTab === 'printing'"
                     (click)="activeTab = 'printing'" 
                     type="button">
               <i class="fas fa-print me-2"></i>
               Impresión
+            </button>
+            <button class="nav-link" 
+                    [class.active]="activeTab === 'backup'"
+                    (click)="activeTab = 'backup'" 
+                    type="button">
+              <i class="fas fa-database me-2"></i>
+              Backup
             </button>
           </div>
         </nav>
@@ -153,7 +161,7 @@ interface WhatsAppConfig {
           </div>
 
           <!-- Configuración de Facturación -->
-          <div class="tab-pane" [class.active]="activeTab === 'invoicing'" *ngIf="activeTab === 'invoicing'">
+          <!-- <div class="tab-pane" [class.active]="activeTab === 'invoicing'" *ngIf="activeTab === 'invoicing'">
             <div class="config-section">
               <h5>Facturación Electrónica</h5>
               
@@ -238,10 +246,10 @@ interface WhatsAppConfig {
 
               
             </div>
-          </div>
+          </div> -->
 
           <!-- Configuración de WhatsApp -->
-          <div class="tab-pane" [class.active]="activeTab === 'whatsapp'" *ngIf="activeTab === 'whatsapp'">
+          <!-- <div class="tab-pane" [class.active]="activeTab === 'whatsapp'" *ngIf="activeTab === 'whatsapp'">
             <div class="config-section">
               <h5>Integración WhatsApp</h5>
               
@@ -286,7 +294,7 @@ interface WhatsAppConfig {
                 </div>
               </form>
             </div>
-          </div>
+          </div> -->
 
           <!-- Configuración de Impresión -->
           <div class="tab-pane" [class.active]="activeTab === 'printing'" *ngIf="activeTab === 'printing'">
@@ -404,6 +412,156 @@ interface WhatsAppConfig {
               </div>
             </div>
           </div>
+
+          <!-- Configuración de Backup -->
+          <div class="tab-pane" [class.active]="activeTab === 'backup'" *ngIf="activeTab === 'backup'">
+            <div class="config-section">
+              <h5>Backup y Restauración de Datos</h5>
+              <p class="text-muted">Administra los backups de tu base de datos para proteger tu información.</p>
+              
+              <!-- Estadísticas de la Base de Datos -->
+              <div class="card mb-3">
+                <div class="card-header">
+                  <i class="fas fa-chart-bar me-2"></i>
+                  Estado Actual de la Base de Datos
+                </div>
+                <div class="card-body">
+                  <div class="row" *ngIf="dbStats">
+                    <div class="col-md-3">
+                      <div class="stat-item">
+                        <div class="stat-value">{{ dbStats.sizeFormatted }}</div>
+                        <div class="stat-label">Tamaño Total</div>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="stat-item">
+                        <div class="stat-value">{{ dbStats.totalRecords }}</div>
+                        <div class="stat-label">Registros Totales</div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="stat-item">
+                        <div class="stat-value">{{ dbStats.lastModified | date:'dd/MM/yyyy HH:mm' }}</div>
+                        <div class="stat-label">Última Modificación</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <h6>Detalle por Tablas:</h6>
+                    <div class="row" *ngIf="dbStats && dbStats.tables">
+                      <div class="col-md-6" *ngFor="let table of objectKeys(dbStats.tables)">
+                        <small class="text-muted">{{ table }}: {{ dbStats.tables[table] }} registros</small>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <button type="button" 
+                            class="btn btn-outline-primary btn-sm"
+                            (click)="refreshDbStats()">
+                      <i class="fas fa-sync-alt me-2"></i>
+                      Actualizar Estadísticas
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Crear Backup -->
+              <div class="card mb-3">
+                <div class="card-header">
+                  <i class="fas fa-download me-2"></i>
+                  Crear Backup
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>¿Qué incluye el backup?</strong><br>
+                    El backup incluye todos tus productos, ventas, clientes, facturas y configuraciones.
+                    Se guardará como un archivo .db que podrás usar para restaurar en caso de emergencia.
+                  </div>
+                  
+                  <div class="d-grid gap-2">
+                    <button type="button" 
+                            class="btn btn-success"
+                            (click)="createBackup()"
+                            [disabled]="backupInProgress">
+                      <i class="fas fa-download me-2" *ngIf="!backupInProgress"></i>
+                      <i class="fas fa-spinner fa-spin me-2" *ngIf="backupInProgress"></i>
+                      {{ backupInProgress ? 'Creando backup...' : 'Crear Backup Ahora' }}
+                    </button>
+                  </div>
+                  
+                  <div class="mt-3" *ngIf="lastBackupResult">
+                    <div class="alert" [class.alert-success]="lastBackupResult.success" 
+                         [class.alert-danger]="!lastBackupResult.success">
+                      <i class="fas fa-check-circle me-2" *ngIf="lastBackupResult.success"></i>
+                      <i class="fas fa-exclamation-triangle me-2" *ngIf="!lastBackupResult.success"></i>
+                      {{ lastBackupResult.message }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Restaurar Backup -->
+              <div class="card mb-3">
+                <div class="card-header">
+                  <i class="fas fa-upload me-2"></i>
+                  Restaurar Backup
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>¡Importante!</strong><br>
+                    Restaurar un backup reemplazará completamente todos los datos actuales.
+                    Se creará automáticamente un backup de seguridad antes de la restauración.
+                  </div>
+                  
+                  <div class="d-grid gap-2">
+                    <button type="button" 
+                            class="btn btn-outline-danger"
+                            (click)="restoreBackup()"
+                            [disabled]="restoreInProgress">
+                      <i class="fas fa-upload me-2" *ngIf="!restoreInProgress"></i>
+                      <i class="fas fa-spinner fa-spin me-2" *ngIf="restoreInProgress"></i>
+                      {{ restoreInProgress ? 'Restaurando...' : 'Seleccionar y Restaurar Backup' }}
+                    </button>
+                  </div>
+                  
+                  <div class="mt-3" *ngIf="lastRestoreResult">
+                    <div class="alert" [class.alert-success]="lastRestoreResult.success" 
+                         [class.alert-danger]="!lastRestoreResult.success">
+                      <i class="fas fa-check-circle me-2" *ngIf="lastRestoreResult.success"></i>
+                      <i class="fas fa-exclamation-triangle me-2" *ngIf="!lastRestoreResult.success"></i>
+                      {{ lastRestoreResult.message }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recomendaciones -->
+              <div class="card">
+                <div class="card-header">
+                  <i class="fas fa-lightbulb me-2"></i>
+                  Recomendaciones de Backup
+                </div>
+                <div class="card-body">
+                  <ul class="mb-0">
+                    <li class="mb-2">
+                      <strong>Frecuencia:</strong> Crea backups regularmente, especialmente antes de cambios importantes.
+                    </li>
+                    <li class="mb-2">
+                      <strong>Almacenamiento:</strong> Guarda los backups en dispositivos externos (USB, nube, etc.).
+                    </li>
+                    <li class="mb-2">
+                      <strong>Verificación:</strong> Prueba ocasionalmente la restauración en un sistema de prueba.
+                    </li>
+                    <li class="mb-2">
+                      <strong>Seguridad:</strong> Mantén múltiples copias en ubicaciones diferentes.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -493,6 +651,13 @@ export class SettingsComponent implements OnInit {
   // Impresora seleccionada
   selectedPrinter: string = 'DigitalPOS';
 
+  // Propiedades de backup
+  dbStats: any = null;
+  backupInProgress: boolean = false;
+  restoreInProgress: boolean = false;
+  lastBackupResult: any = null;
+  lastRestoreResult: any = null;
+
   // Configuración completa del sistema
   config = {
     normal: {
@@ -515,7 +680,8 @@ export class SettingsComponent implements OnInit {
 
   constructor(
     private electronService: ElectronService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private notificationService: NotificationService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -525,6 +691,9 @@ export class SettingsComponent implements OnInit {
     // Luego cargar configuración guardada
     await this.loadAllConfigs();
     this.loadLegacyConfig();
+    
+    // Cargar estadísticas de backup
+    await this.refreshDbStats();
   }
 
   /**
@@ -652,12 +821,7 @@ export class SettingsComponent implements OnInit {
       // Actualizar configuración de impresión automática
       this.configService.setAutoprint(this.autoprintEnabled);
 
-      alert(
-        `✅ CONFIGURACIÓN GUARDADA\n\n` +
-        `Impresora Seleccionada: ${this.selectedPrinter.trim()}\n` +
-        `Impresión automática: ${this.autoprintEnabled ? 'Habilitada' : 'Deshabilitada'}\n\n` +
-        `¡La configuración se aplicará en el próximo pago!`
-      );
+      this.notificationService.success('Configuración Guardada', `Impresora: ${this.selectedPrinter.trim()}. Impresión automática: ${this.autoprintEnabled ? 'Habilitada' : 'Deshabilitada'}. ¡La configuración se aplicará en el próximo pago!`);
 
       console.log('✅ Configuración legacy guardada:', {
         selectedPrinter: this.selectedPrinter.trim(),
@@ -667,7 +831,7 @@ export class SettingsComponent implements OnInit {
 
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
-      alert('❌ Error al guardar la configuración');
+      this.notificationService.error('Error Configuración', 'Error al guardar la configuración');
     }
   }
 
@@ -711,18 +875,11 @@ export class SettingsComponent implements OnInit {
 
       this.configService.saveConfig(fullConfig);
 
-      alert(
-        `✅ CONFIGURACIÓN COMPLETA GUARDADA\n\n` +
-        `✓ Impresora Seleccionada: ${this.selectedPrinter.trim()}\n` +
-        `✓ Impresión automática: ${this.autoprintEnabled ? 'Sí' : 'No'}\n` +
-        `✓ Empresa: ${this.config.invoicing.companyName}\n` +
-        `✓ WhatsApp: ${this.config.whatsapp.enabled ? 'Habilitado' : 'Deshabilitado'}\n\n` +
-        `¡Configuración aplicada exitosamente!`
-      );
+      this.notificationService.success('Configuración Completa', `Configuración completa guardada: Impresora ${this.selectedPrinter.trim()}, Impresión automática ${this.autoprintEnabled ? 'Sí' : 'No'}, Empresa ${this.config.invoicing.companyName}, WhatsApp ${this.config.whatsapp.enabled ? 'Habilitado' : 'Deshabilitado'}. ¡Configuración aplicada exitosamente!`);
 
     } catch (error) {
       console.error('❌ Error guardando configuración completa:', error);
-      alert('❌ Error al guardar la configuración completa');
+      this.notificationService.error('Error Completo', 'Error al guardar la configuración completa');
     }
   }
 
@@ -731,23 +888,22 @@ export class SettingsComponent implements OnInit {
    */
   loadConfig(): void {
     this.loadLegacyConfig();
-    alert('✅ Configuración recargada desde localStorage');
+    this.notificationService.success('Configuración Recargada', 'Configuración recargada desde localStorage');
   }
 
   /**
    * Restaura la configuración por defecto
    */
-  resetConfig(): void {
-    const confirm = window.confirm(
-      '⚠️ RESTAURAR CONFIGURACIÓN\n\n' +
-      'Esto eliminará toda la configuración actual y restaurará los valores por defecto.\n\n' +
-      '¿Estás seguro de continuar?'
+  async resetConfig(): Promise<void> {
+    const confirm = await this.notificationService.confirm(
+      'Restaurar Configuración',
+      'Esto eliminará toda la configuración actual y restaurará los valores por defecto. ¿Estás seguro de continuar?'
     );
 
     if (confirm) {
       this.configService.resetToDefault();
       this.loadLegacyConfig();
-      alert('✅ Configuración restaurada a valores por defecto');
+      this.notificationService.success('Configuración Restaurada', 'Configuración restaurada a valores por defecto');
     }
   }
 
@@ -759,7 +915,7 @@ export class SettingsComponent implements OnInit {
       
     } catch (error) {
       console.error('Error cargando configuraciones:', error);
-      alert('Error cargando configuraciones');
+      this.notificationService.error('Error Carga', 'Error cargando configuraciones');
     }
   }
 
@@ -790,13 +946,13 @@ export class SettingsComponent implements OnInit {
           nuevo: this.companyConfig,
           legacy: updatedConfig.invoicing
         });
-        alert('Configuración de empresa guardada exitosamente');
+        this.notificationService.success('Empresa Guardada', 'Configuración de empresa guardada exitosamente');
       } else {
-        alert('Error guardando configuración de empresa');
+        this.notificationService.error('Error Empresa', 'Error guardando configuración de empresa');
       }
     } catch (error) {
       console.error('Error guardando configuración de empresa:', error);
-      alert('Error guardando configuración de empresa');
+      this.notificationService.error('Error Empresa', 'Error guardando configuración de empresa');
     }
   }
 
@@ -808,13 +964,13 @@ export class SettingsComponent implements OnInit {
     try {
       const result = await this.electronService.updateInvoicingConfig(this.invoicingConfig);
       if (result) {
-        alert('Configuración de facturación guardada exitosamente');
+        this.notificationService.success('Facturación Guardada', 'Configuración de facturación guardada exitosamente');
       } else {
-        alert('Error guardando configuración de facturación');
+        this.notificationService.error('Error Facturación', 'Error guardando configuración de facturación');
       }
     } catch (error) {
       console.error('Error guardando configuración de facturación:', error);
-      alert('Error guardando configuración de facturación');
+      this.notificationService.error('Error Facturación', 'Error guardando configuración de facturación');
     }
   }
 
@@ -822,13 +978,13 @@ export class SettingsComponent implements OnInit {
     try {
       const result = await this.electronService.updateWhatsAppConfig(this.whatsAppConfig);
       if (result) {
-        alert('Configuración de WhatsApp guardada exitosamente');
+        this.notificationService.success('WhatsApp Guardado', 'Configuración de WhatsApp guardada exitosamente');
       } else {
-        alert('Error guardando configuración de WhatsApp');
+        this.notificationService.error('Error WhatsApp', 'Error guardando configuración de WhatsApp');
       }
     } catch (error) {
       console.error('Error guardando configuración de WhatsApp:', error);
-      alert('Error guardando configuración de WhatsApp');
+      this.notificationService.error('Error WhatsApp', 'Error guardando configuración de WhatsApp');
     }
   }
 
@@ -842,7 +998,7 @@ export class SettingsComponent implements OnInit {
       if (printers.thermal.length === 0) {
         // Mostrar todas las impresoras para ayudar con el diagnóstico
         const allPrinters = printers.all.map((p: any) => `- ${p.name} (${p.status || 'estado desconocido'})`).join('\n');
-        alert(`No se encontraron impresoras térmicas automáticamente.\n\nTodas las impresoras detectadas:\n${allPrinters}\n\n¿Cuál es tu impresora térmica? Puedes seleccionarla manualmente.`);
+        this.notificationService.warning('Sin Impresoras Térmicas', `No se encontraron impresoras térmicas automáticamente. Impresoras detectadas: ${allPrinters}. Puedes seleccionarla manualmente.`);
         
         // Permitir selección manual
         const printerNames = printers.all.map((p: any, i: number) => `${i + 1}. ${p.name}`);
@@ -854,7 +1010,7 @@ export class SettingsComponent implements OnInit {
         
         const selectedIndex = parseInt(choice) - 1;
         if (selectedIndex < 0 || selectedIndex >= printers.all.length) {
-          alert('Selección inválida');
+          this.notificationService.error('Selección Inválida', 'Selección inválida');
           return;
         }
         
@@ -876,7 +1032,7 @@ export class SettingsComponent implements OnInit {
 
         console.log('Enviando datos de prueba:', testData);
         await this.electronService.printThermal(testData);
-        alert(`Impresión de prueba enviada a: ${selectedPrinter.name}`);
+        this.notificationService.success('Impresión Enviada', `Impresión de prueba enviada a: ${selectedPrinter.name}`);
         return;
       }
 
@@ -899,11 +1055,11 @@ export class SettingsComponent implements OnInit {
 
       console.log('Enviando datos de prueba a impresora térmica:', testData);
       await this.electronService.printThermal(testData);
-      alert(`Impresión de prueba enviada a impresora térmica: ${thermalPrinter.name}`);
+      this.notificationService.success('Impresión Térmica', `Impresión de prueba enviada a impresora térmica: ${thermalPrinter.name}`);
       
     } catch (error) {
       console.error('Error en impresión de prueba:', error);
-      alert(`Error en impresión de prueba: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      this.notificationService.error('Error Impresión', `Error en impresión de prueba: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
 
@@ -913,7 +1069,7 @@ export class SettingsComponent implements OnInit {
       const printers = await this.electronService.getAvailablePrinters();
       
       if (printers.all.length === 0) {
-        alert('No se detectaron impresoras en el sistema');
+        this.notificationService.warning('Sin Impresoras', 'No se detectaron impresoras en el sistema');
         return;
       }
 
@@ -932,7 +1088,7 @@ export class SettingsComponent implements OnInit {
       
       const selectedIndex = parseInt(choice) - 1;
       if (selectedIndex < 0 || selectedIndex >= printers.all.length) {
-        alert('Selección inválida');
+        this.notificationService.error('Selección Inválida', 'Selección inválida');
         return;
       }
       
@@ -942,19 +1098,11 @@ export class SettingsComponent implements OnInit {
       const result = await this.electronService.testBasicPrint(selectedPrinter.name);
       console.log('Resultado de prueba básica:', result);
       
-      alert(
-        `✅ Prueba básica enviada a: ${selectedPrinter.name}\n\n` +
-        `Si no imprimió, revisa:\n` +
-        `• Que la impresora esté encendida\n` +
-        `• Que tenga papel\n` +
-        `• Los drivers estén instalados\n` +
-        `• No haya trabajos de impresión pendientes\n\n` +
-        `Revisa también la consola de desarrollo (F12) para más detalles.`
-      );
+      this.notificationService.success('Prueba Enviada', `Prueba básica enviada a: ${selectedPrinter.name}. Si no imprimió, revisa que la impresora esté encendida, tenga papel, los drivers estén instalados y no haya trabajos pendientes. Revisa también la consola (F12) para más detalles.`);
       
     } catch (error) {
       console.error('Error en prueba básica:', error);
-      alert(`Error en prueba básica: ${error instanceof Error ? error.message : 'Error desconocido'}\n\nRevisa la consola de desarrollo (F12) para más detalles.`);
+      this.notificationService.error('Error Prueba', `Error en prueba básica: ${error instanceof Error ? error.message : 'Error desconocido'}. Revisa la consola de desarrollo (F12) para más detalles.`);
     }
   }
 
@@ -985,7 +1133,7 @@ export class SettingsComponent implements OnInit {
       
     } catch (error) {
       console.error('❌ Error iniciando método legacy:', error);
-      alert(`❌ Error: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      this.notificationService.error('Error', `Error: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
 
@@ -994,7 +1142,7 @@ export class SettingsComponent implements OnInit {
       console.log('🔧 Debug - executeLegacyPrint iniciado con:', printerName);
       
       if (!printerName || !printerName.trim()) {
-        alert('Debe ingresar el nombre de la impresora');
+        this.notificationService.warning('Campo Requerido', 'Debe ingresar el nombre de la impresora');
         return;
       }
 
@@ -1037,41 +1185,11 @@ export class SettingsComponent implements OnInit {
       const result = await this.electronService.printThermalLegacy(testData);
       console.log('✅ Resultado del método legacy:', result);
 
-      alert(
-        `✅ MÉTODO EXITOSO COMPLETADO\n\n` +
-        `Impresora: ${printerName.trim()}\n` +
-        `Resultado: ${result.message}\n\n` +
-        `✅ DATOS DE EMPRESA INCLUIDOS:\n` +
-        `• Nombre: ${this.config.invoicing.companyName || 'No configurado'}\n` +
-        `• NIT: ${this.config.invoicing.companyNit || 'No configurado'}\n` +
-        `• Dirección: ${this.config.invoicing.companyAddress || 'No configurado'}\n` +
-        `• Teléfono: ${this.config.invoicing.companyPhone || 'No configurado'}\n\n` +
-        `Si funcionó correctamente:\n` +
-        `• Se imprimió el ticket con datos de empresa\n` +
-        `• Se cortó el papel\n` +
-        `• Se abrió el cajón\n\n` +
-        `💡 NOTA: Configura los datos de empresa\n` +
-        `en la sección "Facturación Electrónica"\n` +
-        `para personalizar el recibo.\n\n` +
-        `¡Este es el método que usaremos en el sistema!`
-      );
+      this.notificationService.success('Método Exitoso', `Método exitoso completado en impresora: ${printerName.trim()}. Resultado: ${result.message}. Se imprimió el ticket con datos de empresa, se cortó el papel y se abrió el cajón. Configura los datos de empresa en "Facturación Electrónica" para personalizar el recibo. ¡Este es el método que usaremos en el sistema!`);
       
     } catch (error) {
       console.error('❌ Error en método legacy:', error);
-      alert(
-        `❌ ERROR EN MÉTODO EXITOSO\n\n` +
-        `Impresora que se intentó usar: ${printerName.trim()}\n` +
-        `Error: ${error instanceof Error ? error.message : 'Error desconocido'}\n\n` +
-        `Posibles causas:\n` +
-        `• El nombre "${printerName.trim()}" no existe en Windows\n` +
-        `• La impresora está apagada o desconectada\n` +
-        `• No tiene papel o está en error\n` +
-        `• Faltan drivers de impresora\n\n` +
-        `💡 SOLUCIÓN: Necesitamos configurar el nombre\n` +
-        `exacto de tu impresora como aparece en:\n` +
-        `Panel de Control → Dispositivos e impresoras\n\n` +
-        `Revisa la consola de desarrollo (F12) para más detalles.`
-      );
+      this.notificationService.error('Error Método', `Error en método exitoso. Impresora: ${printerName.trim()}. Error: ${error instanceof Error ? error.message : 'Error desconocido'}. Posibles causas: nombre no existe en Windows, impresora apagada, sin papel o faltan drivers. Solución: configura el nombre exacto como aparece en Panel de Control → Dispositivos e impresoras. Revisa la consola (F12).`);
     }
   }
 
@@ -1088,7 +1206,7 @@ export class SettingsComponent implements OnInit {
     });
 
     if (!this.printerName.trim()) {
-      alert('Por favor ingresa el nombre de la impresora');
+      this.notificationService.warning('Campo Requerido', 'Por favor ingresa el nombre de la impresora');
       return;
     }
 
@@ -1149,26 +1267,27 @@ export class SettingsComponent implements OnInit {
         '   puedes seleccionarla manualmente en "Probar Impresión"'
       ];
       
-      alert(message.join('\n'));
+      this.notificationService.info('Lista de Impresoras', message.join('\n'));
     } catch (error) {
       console.error('Error obteniendo impresoras:', error);
-      alert(`Error obteniendo lista de impresoras: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      this.notificationService.error('Error Impresoras', `Error obteniendo lista de impresoras: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   }
 
   async resetAllConfig(): Promise<void> {
-    if (confirm('¿Está seguro de que desea restaurar toda la configuración a los valores por defecto?')) {
+    const confirmed = await this.notificationService.confirm('Restaurar Configuración', '¿Está seguro de que desea restaurar toda la configuración a los valores por defecto?');
+    if (confirmed) {
       try {
         const result = await this.electronService.resetConfig();
         if (result) {
           await this.loadAllConfigs();
-          alert('Configuración restaurada exitosamente');
+          this.notificationService.success('Configuración Restaurada', 'Configuración restaurada exitosamente');
         } else {
-          alert('Error restaurando configuración');
+          this.notificationService.error('Error Restaurar', 'Error restaurando configuración');
         }
       } catch (error) {
         console.error('Error restaurando configuración:', error);
-        alert('Error restaurando configuración');
+        this.notificationService.error('Error Restaurar', 'Error restaurando configuración');
       }
     }
   }
@@ -1185,10 +1304,10 @@ export class SettingsComponent implements OnInit {
       a.click();
       
       URL.revokeObjectURL(url);
-      alert('Configuración exportada exitosamente');
+      this.notificationService.success('Configuración Exportada', 'Configuración exportada exitosamente');
     } catch (error) {
       console.error('Error exportando configuración:', error);
-      alert('Error exportando configuración');
+      this.notificationService.error('Error Exportar', 'Error exportando configuración');
     }
   }
 
@@ -1207,16 +1326,81 @@ export class SettingsComponent implements OnInit {
         
         if (result) {
           await this.loadAllConfigs();
-          alert('Configuración importada exitosamente');
+          this.notificationService.success('Configuración Importada', 'Configuración importada exitosamente');
         } else {
-          alert('Error importando configuración');
+          this.notificationService.error('Error Importar', 'Error importando configuración');
         }
       } catch (error) {
         console.error('Error importando configuración:', error);
-        alert('Error importando configuración');
+        this.notificationService.error('Error Importar', 'Error importando configuración');
       }
     };
     
     input.click();
+  }
+
+  // Métodos para backup y restauración
+  async refreshDbStats(): Promise<void> {
+    try {
+      this.dbStats = await this.electronService.getBackupStats();
+    } catch (error) {
+      console.error('Error obteniendo estadísticas de BD:', error);
+    }
+  }
+
+  async createBackup(): Promise<void> {
+    if (this.backupInProgress) return;
+
+    this.backupInProgress = true;
+    this.lastBackupResult = null;
+
+    try {
+      this.lastBackupResult = await this.electronService.createBackup();
+    } catch (error) {
+      console.error('Error creando backup:', error);
+      this.lastBackupResult = {
+        success: false,
+        message: 'Error interno creando backup'
+      };
+    } finally {
+      this.backupInProgress = false;
+    }
+  }
+
+  async restoreBackup(): Promise<void> {
+    if (this.restoreInProgress) return;
+
+    // Confirmación adicional
+    const confirm = await this.notificationService.confirm(
+      'Restaurar Backup',
+      '¿Está COMPLETAMENTE SEGURO de restaurar un backup? Esta acción reemplazará todos los datos actuales, no se puede deshacer y se creará un backup automático antes de continuar.'
+    );
+
+    if (!confirm) return;
+
+    this.restoreInProgress = true;
+    this.lastRestoreResult = null;
+
+    try {
+      this.lastRestoreResult = await this.electronService.restoreBackup();
+      
+      if (this.lastRestoreResult.success) {
+        // Refrescar estadísticas después de restaurar
+        await this.refreshDbStats();
+      }
+    } catch (error) {
+      console.error('Error restaurando backup:', error);
+      this.lastRestoreResult = {
+        success: false,
+        message: 'Error interno restaurando backup'
+      };
+    } finally {
+      this.restoreInProgress = false;
+    }
+  }
+
+  // Método helper para usar Object.keys en el template
+  objectKeys(obj: any): string[] {
+    return Object.keys(obj || {});
   }
 }

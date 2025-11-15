@@ -74,6 +74,7 @@ export class ElectronService {
   async getSalesByCategory(from: string, to: string) { return (window as any).api.getSalesByCategory(from, to); }
   async getTaxSummary(from: string, to: string) { return (window as any).api.getTaxSummary(from, to); }
   async getFrequency(from: string, to: string) { return (window as any).api.getFrequency(from, to); }
+  async getDailyClosure(date: string) { return (window as any).api.getDailyClosure(date); }
   async exportReportPdf(html: string, defaultName: string) { return (window as any).api.exportReportPdf(html, defaultName); }
 
   // Configs
@@ -90,4 +91,21 @@ export class ElectronService {
   async resetConfig() { return (window as any).api.resetConfig(); }
   async exportConfig() { return (window as any).api.exportConfig(); }
   async importConfig(configJson: string) { return (window as any).api.importConfig(configJson); }
+
+  // Licencias
+  async validateLicense() { return (window as any).api.validateLicense(); }
+  async getHardwareInfo() { return (window as any).api.getHardwareInfo(); }
+  async installLicense(encryptedLicense: string) { return (window as any).api.installLicense(encryptedLicense); }
+  async checkLicenseStatus() { return (window as any).api.checkLicenseStatus(); }
+
+  // Backup y Restauración
+  async createBackup() { return (window as any).api.createBackup(); }
+  async restoreBackup() { return (window as any).api.restoreBackup(); }
+  async verifyBackup(filePath: string) { return (window as any).api.verifyBackup(filePath); }
+  async getBackupStats() { return (window as any).api.getBackupStats(); }
+
+  // Sistema - Fix para inputs bloqueados
+  async fixInputs() { return (window as any).api.fixInputs(); }
+  async forceReload() { return (window as any).api.forceReload(); }
+  async resetAngular() { return (window as any).api.resetAngular(); }
 }

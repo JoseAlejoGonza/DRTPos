@@ -3,11 +3,11 @@
 
   <div class="mb-3">
     <label>Desde</label>
-    <input type="date" [(ngModel)]="from" (change)="onRangeChange()" class="form-control" />
+    <input type="date" [(ngModel)]="from" name="reportDateFrom" (change)="onRangeChange()" class="form-control" />
   </div>
   <div class="mb-3">
     <label>Hasta</label>
-    <input type="date" [(ngModel)]="to" (change)="onRangeChange()" class="form-control" />
+    <input type="date" [(ngModel)]="to" name="reportDateTo" (change)="onRangeChange()" class="form-control" />
   </div>
 
   <div class="mb-3">
@@ -116,7 +116,11 @@
 
       <div class="mt-2">
         <button class="btn btn-outline-success me-2" (click)="exportCsv('report.csv', result.rows)">Exportar CSV</button>
-        <button class="btn btn-outline-primary" (click)="exportPdfFromRows('report.pdf', result.rows, 'Reporte')">Exportar PDF</button>
+        <button class="btn btn-outline-primary me-2" (click)="exportPdfFromRows('report.pdf', result.rows, 'Reporte')">Exportar PDF</button>
+        <!-- Botón de cierre de caja solo para resumen diario -->
+        <button *ngIf="currentTab === 'summary' && isDailyToday()" class="btn btn-warning" (click)="generateDailyClosure()">
+          <i class="fas fa-calendar-check"></i> Cierre de caja diario
+        </button>
       </div>
     </div>
 
@@ -128,6 +132,13 @@
           <div class="fs-4 fw-bold">{{ formatCurrency(result.totalGross) }}</div>
           <div class="text-muted">Ventas netas: {{ formatCurrency(result.totalNet) }}</div>
           <div class="text-muted">Transacciones: {{ formatNumber(result.count) }}</div>
+        </div>
+        <!-- Botón de cierre de caja diario -->
+        <div *ngIf="isDailyToday()" class="card p-3">
+          <button class="btn btn-warning w-100" (click)="generateDailyClosure()">
+            <i class="fas fa-calendar-check me-2"></i>Generar Cierre de Caja Diario
+          </button>
+          <small class="text-muted mt-2 d-block">Descarga un PDF completo con el resumen del día</small>
         </div>
         <div class="card p-3">
           <div class="text-muted">Impuestos cobrados</div>
