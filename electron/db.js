@@ -21,6 +21,7 @@ db.prepare(`CREATE TABLE IF NOT EXISTS products (
   code TEXT,
   name TEXT,
   price REAL,
+  cost_price REAL,
   stock INTEGER,
   color TEXT,
   imagen TEXT,
@@ -28,25 +29,39 @@ db.prepare(`CREATE TABLE IF NOT EXISTS products (
   FOREIGN KEY (category_id) REFERENCES categories(id)
 )`).run();
 
-// Si la columna imagen existe y es BLOB, migrar a TEXT (solo si es necesario)
+// Migraciones para la tabla products
 const productCols = db.prepare("PRAGMA table_info(products)").all();
 const imagenCol = productCols.find(col => col.name === 'imagen');
+const costPriceCol = productCols.find(col => col.name === 'cost_price');
+
+// Migración: Si la columna imagen existe y es BLOB, migrar a TEXT
 if (imagenCol && imagenCol.type !== 'TEXT') {
-  // Migración manual: crear nueva columna, copiar datos, eliminar la vieja, renombrar
   db.prepare('ALTER TABLE products RENAME TO products_old').run();
   db.prepare(`CREATE TABLE products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     code TEXT,
     name TEXT,
     price REAL,
+    cost_price REAL,
     stock INTEGER,
     color TEXT,
     imagen TEXT,
     category_id INTEGER,
     FOREIGN KEY (category_id) REFERENCES categories(id)
   )`).run();
-  db.prepare('INSERT INTO products (id, code, name, price, stock, color, imagen, category_id) SELECT id, code, name, price, stock, color, NULL, category_id FROM products_old').run();
+  db.prepare('INSERT INTO products (id, code, name, price, cost_price, stock, color, imagen, category_id) SELECT id, code, name, price, 0, stock, color, NULL, category_id FROM products_old').run();
   db.prepare('DROP TABLE products_old').run();
+  console.log('✅ Migración de tabla products completada con cost_price');
+}
+
+// Migración: Agregar columna cost_price si no existe
+if (!costPriceCol) {
+  try {
+    db.prepare('ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0').run();
+    console.log('✅ Columna cost_price agregada a tabla products');
+  } catch (error) {
+    console.log('⚠️ La columna cost_price ya existe o error:', error.message);
+  }
 }
 
 // Tabla de ventas (primera definición)
@@ -226,10 +241,68 @@ function updateProductStock(productId, quantity) {
   return db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?').run(quantity, productId);
 }
 
+// Función para obtener reporte de ganancias por producto
+function getProfitByProduct(startDate, endDate) {
+  return db.prepare(`
+    SELECT 
+      p.name as product_name,
+      p.price as sale_price,
+      p.cost_price,
+      SUM(ds.quantity) as total_sold,
+      SUM(ds.quantity * p.price) as total_revenue,
+      SUM(ds.quantity * p.cost_price) as total_cost,
+      SUM(ds.quantity * (p.price - p.cost_price)) as total_profit,
+      ROUND((p.price - p.cost_price) / p.price * 100, 2) as profit_margin_percent
+    FROM detail_sales ds
+    JOIN products p ON ds.id_product = p.id
+    JOIN sales s ON ds.id_sale = s.id
+    WHERE s.date_sale BETWEEN ? AND ?
+    GROUP BY p.id, p.name, p.price, p.cost_price
+    ORDER BY total_profit DESC
+  `).all(startDate, endDate);
+}
+
+// Función para obtener reporte de ganancias por categoría
+function getProfitByCategory(startDate, endDate) {
+  return db.prepare(`
+    SELECT 
+      c.name as category_name,
+      SUM(ds.quantity) as total_sold,
+      SUM(ds.quantity * p.price) as total_revenue,
+      SUM(ds.quantity * p.cost_price) as total_cost,
+      SUM(ds.quantity * (p.price - p.cost_price)) as total_profit,
+      ROUND(AVG((p.price - p.cost_price) / p.price * 100), 2) as avg_profit_margin_percent
+    FROM detail_sales ds
+    JOIN products p ON ds.id_product = p.id
+    JOIN categories c ON p.category_id = c.id
+    JOIN sales s ON ds.id_sale = s.id
+    WHERE s.date_sale BETWEEN ? AND ?
+    GROUP BY c.id, c.name
+    ORDER BY total_profit DESC
+  `).all(startDate, endDate);
+}
+
+// Función para obtener resumen de ganancias del día
+function getDailyProfitSummary(date) {
+  return db.prepare(`
+    SELECT 
+      COUNT(DISTINCT s.id) as total_sales,
+      SUM(ds.quantity) as total_items_sold,
+      SUM(ds.quantity * p.price) as total_revenue,
+      SUM(ds.quantity * p.cost_price) as total_cost,
+      SUM(ds.quantity * (p.price - p.cost_price)) as total_profit,
+      ROUND(SUM(ds.quantity * (p.price - p.cost_price)) / SUM(ds.quantity * p.price) * 100, 2) as overall_profit_margin_percent
+    FROM detail_sales ds
+    JOIN products p ON ds.id_product = p.id
+    JOIN sales s ON ds.id_sale = s.id
+    WHERE DATE(s.date_sale) = ?
+  `).get(date);
+}
+
 function addProduct(product) {
   // Guarda la ruta local o URL como texto
-  return db.prepare('INSERT INTO products (imagen, name, price, stock, color, category_id) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(product.image, product.name, product.price, product.stock, product.color || '', product.category_id || null);
+  return db.prepare('INSERT INTO products (imagen, name, price, cost_price, stock, color, category_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(product.image, product.name, product.price, product.cost_price || 0, product.stock, product.color || '', product.category_id || null);
 }
 
 function getProducts() {
@@ -256,20 +329,35 @@ function deleteCategory(id) {
 
 function updateProduct(product) {
   // Actualiza la ruta local o URL como texto
-  console.log('Updating product:', product);
-  return db.prepare(`
+  console.log('🔍 DB updateProduct - Producto recibido:', product);
+  console.log('🔍 DB updateProduct - cost_price específico:', {
+    raw: product.cost_price,
+    type: typeof product.cost_price,
+    final_value: product.cost_price || 0
+  });
+  
+  const result = db.prepare(`
     UPDATE products
-    SET imagen = ?, name = ?, price = ?, stock = ?, color = ?, category_id = ?
+    SET imagen = ?, name = ?, price = ?, cost_price = ?, stock = ?, color = ?, category_id = ?
     WHERE id = ?
   `).run(
     product.image,
     product.name,
     product.price,
+    product.cost_price || 0,
     product.stock,
     product.color || '',
     product.category_id || null,
     product.id
   );
+  
+  console.log('🔍 DB updateProduct - Resultado de actualización:', result);
+  
+  // Verificar que se actualizó correctamente
+  const updated = db.prepare('SELECT * FROM products WHERE id = ?').get(product.id);
+  console.log('🔍 DB updateProduct - Producto después de actualizar:', updated);
+  
+  return result;
 }
 
 module.exports = {
@@ -298,5 +386,9 @@ module.exports = {
   // Detail Sales
   addDetailSale,
   getDetailSales,
+  // Profit Reports
+  getProfitByProduct,
+  getProfitByCategory,
+  getDailyProfitSummary,
   db
 };

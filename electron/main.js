@@ -229,9 +229,9 @@ ipcMain.handle('products:getByCode', (e, code) => {
   return db.getProductByCode(code);
 });
 ipcMain.handle('products:update', (e, p) => {
-  // Actualizar producto incluyendo categoría
-  const stmt = db.db.prepare('UPDATE products SET imagen=?, code=?, name=?, price=?, stock=?, category_id=? WHERE id=?');
-  return stmt.run(p.image, p.code, p.name, p.price, p.stock, p.category_id, p.id);
+  // Usar la función updateProduct del módulo db.js que incluye cost_price
+  console.log('🔍 IPC products:update - Producto recibido:', p);
+  return db.updateProduct(p);
 });
 ipcMain.handle('products:delete', (e, id) => {
   return db.db.prepare('DELETE FROM products WHERE id=?').run(id);
@@ -280,6 +280,14 @@ ipcMain.handle('sales:add', (e, sale) => db.addSale(sale));
 // DETAIL SALES
 ipcMain.handle('detailSales:getAll', () => db.getDetailSales());
 ipcMain.handle('detailSales:add', (e, detail) => db.addDetailSale(detail));
+
+// PROFIT REPORTS
+ipcMain.handle('reports:getProfitByProduct', (e, {startDate, endDate}) => 
+  db.getProfitByProduct(startDate, endDate));
+ipcMain.handle('reports:getProfitByCategory', (e, {startDate, endDate}) => 
+  db.getProfitByCategory(startDate, endDate));
+ipcMain.handle('reports:getDailyProfitSummary', (e, date) => 
+  db.getDailyProfitSummary(date));
 ipcMain.handle('open-image-dialog', async (event) => {
     const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
         properties: ['openFile'],
@@ -392,6 +400,16 @@ ipcMain.handle('print:thermalLegacy', async (event, data) => {
     // Si no, asumimos que es la estructura antigua y adaptamos
     console.log('🔧 [main.js] Estructura no reconocida, usando data completo');
     return await printingService.printThermalLegacy(data);
+  }
+});
+
+ipcMain.handle('print:testESCPOS', async (event, printerName) => {
+  console.log('🧪 [main.js] Prueba de comandos ESC/POS para impresora:', printerName);
+  try {
+    return await printingService.testESCPOSCommands(printerName);
+  } catch (error) {
+    console.error('❌ [main.js] Error en prueba ESC/POS:', error);
+    throw error;
   }
 });
 
@@ -658,6 +676,7 @@ ipcMain.handle('reports:dailyClosure', async (event, { date }) => {
         c.name as categoryName,
         SUM(COALESCE(CAST(ds.quantity AS INTEGER), 0)) as quantitySold,
         p.price as unitPrice,
+        p.cost_price as unitCost,
         p.stock as currentStock,
         SUM(
           CASE 
@@ -674,13 +693,30 @@ ipcMain.handle('reports:dailyClosure', async (event, { date }) => {
               (COALESCE(s.discount, 0) / COALESCE(s.original_total, s.total_sale))
             ELSE 0
           END
-        ) as discountApplied
+        ) as discountApplied,
+        SUM(COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.cost_price, 0)) as totalCost,
+        SUM(
+          CASE 
+            WHEN COALESCE(s.original_total, s.total_sale) > 0 THEN
+              (COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.price, 0)) * 
+              (COALESCE(s.total_sale, 0) / COALESCE(s.original_total, s.total_sale)) -
+              (COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.cost_price, 0))
+            ELSE 
+              (COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.price, 0)) -
+              (COALESCE(CAST(ds.quantity AS INTEGER), 0) * COALESCE(p.cost_price, 0))
+          END
+        ) as totalProfit,
+        CASE 
+          WHEN COALESCE(p.price, 0) > 0 THEN
+            ROUND(((COALESCE(p.price, 0) - COALESCE(p.cost_price, 0)) / COALESCE(p.price, 0)) * 100, 2)
+          ELSE 0
+        END as profitMarginPercent
       FROM detail_sales ds
       JOIN products p ON p.id = CAST(ds.id_product AS INTEGER)
       LEFT JOIN categories c ON p.category_id = c.id
       JOIN sales s ON s.id = ds.id_sale
       WHERE s.date_sale BETWEEN ? AND ?
-      GROUP BY p.id, p.name, c.name, p.price, p.stock
+      GROUP BY p.id, p.name, c.name, p.price, p.cost_price, p.stock
       ORDER BY realAmountPaid DESC
     `);
     
@@ -699,6 +735,12 @@ ipcMain.handle('reports:dailyClosure', async (event, { date }) => {
     
     const summary = summaryStmt.get(from, to);
     
+    // Calcular totales de costos y ganancias del día
+    const totalCost = products.reduce((sum, p) => sum + (p.totalCost || 0), 0);
+    const totalProfit = products.reduce((sum, p) => sum + (p.totalProfit || 0), 0);
+    const overallProfitMargin = summary.totalRevenue > 0 ? 
+      Math.round((totalProfit / summary.totalRevenue) * 100 * 100) / 100 : 0;
+    
     return {
       success: true,
       date,
@@ -707,7 +749,10 @@ ipcMain.handle('reports:dailyClosure', async (event, { date }) => {
         totalSales: summary.totalSales || 0,
         totalRevenue: Math.round((summary.totalRevenue || 0) * 100) / 100,
         totalDiscounts: Math.round((summary.totalDiscounts || 0) * 100) / 100,
-        originalTotal: Math.round((summary.originalTotal || 0) * 100) / 100
+        originalTotal: Math.round((summary.originalTotal || 0) * 100) / 100,
+        totalCost: Math.round(totalCost * 100) / 100,
+        totalProfit: Math.round(totalProfit * 100) / 100,
+        overallProfitMargin: overallProfitMargin
       }
     };
   } catch (error) {

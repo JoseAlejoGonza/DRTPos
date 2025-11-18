@@ -187,6 +187,47 @@ export class ReportsComponent {
     if (this.currentTab === 'category') return await this.runSalesByCategory();
     if (this.currentTab === 'tax') return await this.runTaxSummary();
     if (this.currentTab === 'frequency') return await this.runFrequency();
+    if (this.currentTab === 'profitProduct') return await this.runProfitByProduct();
+    if (this.currentTab === 'profitCategory') return await this.runProfitByCategory();
+    if (this.currentTab === 'dailyProfit') return await this.runDailyProfitSummary();
+  }
+
+  async runProfitByProduct() {
+    this.loading = true; 
+    this.result = null;
+    try {
+      const data = await this.electron.getProfitByProduct(this.from + 'T00:00:00', this.to + 'T23:59:59');
+      this.result = { success: true, rows: data || [] };
+    } catch (e: any) { 
+      this.result = { success: false, error: e.message || e }; 
+    }
+    finally { this.loading = false; }
+    this.prepareTableAndChart('profitProduct');
+  }
+
+  async runProfitByCategory() {
+    this.loading = true; 
+    this.result = null;
+    try {
+      const data = await this.electron.getProfitByCategory(this.from + 'T00:00:00', this.to + 'T23:59:59');
+      this.result = { success: true, rows: data || [] };
+    } catch (e: any) { 
+      this.result = { success: false, error: e.message || e }; 
+    }
+    finally { this.loading = false; }
+    this.prepareTableAndChart('profitCategory');
+  }
+
+  async runDailyProfitSummary() {
+    this.loading = true; 
+    this.result = null;
+    try {
+      const data = await this.electron.getDailyProfitSummary(this.from);
+      this.result = { success: true, summary: data };
+    } catch (e: any) { 
+      this.result = { success: false, error: e.message || e }; 
+    }
+    finally { this.loading = false; }
   }
 
   private prepareTableAndChart(kind: string) {
@@ -203,6 +244,12 @@ export class ReportsComponent {
       } else if (kind === 'range') {
         this.tableKeys = ['period', 'count_sales', 'total'];
         this.tableHeaders = ['Periodo', 'Transacciones', 'Total'];
+      } else if (kind === 'profitProduct') {
+        this.tableKeys = ['product_name', 'total_sold', 'sale_price', 'cost_price', 'total_revenue', 'total_cost', 'total_profit', 'profit_margin_percent'];
+        this.tableHeaders = ['Producto', 'Vendidos', 'Precio Venta', 'Costo', 'Ingresos', 'Costos', 'Ganancia', 'Margen %'];
+      } else if (kind === 'profitCategory') {
+        this.tableKeys = ['category_name', 'total_sold', 'total_revenue', 'total_cost', 'total_profit', 'avg_profit_margin_percent'];
+        this.tableHeaders = ['Categoría', 'Vendidos', 'Ingresos', 'Costos', 'Ganancia', 'Margen Promedio %'];
       } else {
         this.tableKeys = [];
         this.tableHeaders = [];
@@ -221,11 +268,21 @@ export class ReportsComponent {
     // common renames
     const map: any = {
       productName: 'Producto',
+      product_name: 'Producto',
       productId: 'Producto',
       quantitySold: 'Cantidad',
+      total_sold: 'Vendidos',
       totalSales: 'Total',
+      sale_price: 'Precio Venta',
+      cost_price: 'Costo Real',
+      total_revenue: 'Ingresos Totales',
+      total_cost: 'Costo Total',
+      total_profit: 'Ganancia Total',
+      profit_margin_percent: 'Margen %',
+      avg_profit_margin_percent: 'Margen Promedio %',
       unitPrice: 'Precio Unit.',
       categoryName: 'Categoría',
+      category_name: 'Categoría',
       period: 'Periodo',
       count_sales: 'Transacciones',
       total: 'Total'
@@ -253,6 +310,12 @@ export class ReportsComponent {
     } else if (kind === 'range') {
       labels = rows.map((r: any) => r.period);
       values = rows.map((r: any) => Number(r.total || 0));
+    } else if (kind === 'profitProduct') {
+      labels = rows.map((r: any) => r.product_name || r.productName);
+      values = rows.map((r: any) => Number(r.total_profit || 0));
+    } else if (kind === 'profitCategory') {
+      labels = rows.map((r: any) => r.category_name || r.categoryName);
+      values = rows.map((r: any) => Number(r.total_profit || 0));
     } else {
       labels = rows.map((r: any, i: number) => 'R' + (i+1));
       values = rows.map((r: any) => {
@@ -357,7 +420,7 @@ export class ReportsComponent {
         }
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 15px;
         }
         .summary-item {
@@ -439,6 +502,18 @@ export class ReportsComponent {
                 <div class="label">Descuentos Aplicados</div>
                 <div class="value">${this.formatCurrency(data.summary.totalDiscounts)}</div>
             </div>
+            <div class="summary-item">
+                <div class="label">Costos Totales</div>
+                <div class="value">${this.formatCurrency(data.summary.totalCost || 0)}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">Ganancia Total</div>
+                <div class="value" style="color: #27ae60;">${this.formatCurrency(data.summary.totalProfit || 0)}</div>
+            </div>
+            <div class="summary-item">
+                <div class="label">Margen de Ganancia</div>
+                <div class="value" style="color: #2980b9;">${(data.summary.overallProfitMargin || 0).toFixed(2)}%</div>
+            </div>
         </div>
     </div>
 
@@ -448,11 +523,14 @@ export class ReportsComponent {
             <tr>
                 <th>Producto</th>
                 <th>Categoría</th>
-                <th>Cantidad Vendida</th>
-                <th>Precio Unitario</th>
-                <th>Valor Real Pagado</th>
-                <th>Descuento Aplicado</th>
-                <th>Stock Disponible</th>
+                <th>Cantidad</th>
+                <th>Precio Unit.</th>
+                <th>Costo Unit.</th>
+                <th>Ingresos</th>
+                <th>Costos</th>
+                <th>Ganancia</th>
+                <th>Margen %</th>
+                <th>Stock</th>
             </tr>
         </thead>
         <tbody>
@@ -461,9 +539,12 @@ export class ReportsComponent {
                 <td>${product.productName}</td>
                 <td>${product.categoryName || 'Sin categoría'}</td>
                 <td style="text-align: center;">${product.quantitySold}</td>
-                <td class="currency">${this.formatCurrency(product.unitPrice)}</td>
-                <td class="currency">${this.formatCurrency(product.realAmountPaid)}</td>
-                <td class="currency">${this.formatCurrency(product.discountApplied)}</td>
+                <td class="currency">${this.formatCurrency(product.unitPrice || 0)}</td>
+                <td class="currency">${this.formatCurrency(product.unitCost || 0)}</td>
+                <td class="currency">${this.formatCurrency(product.realAmountPaid || 0)}</td>
+                <td class="currency">${this.formatCurrency(product.totalCost || 0)}</td>
+                <td class="currency" style="color: #27ae60;">${this.formatCurrency(product.totalProfit || 0)}</td>
+                <td style="text-align: center; color: #2980b9;">${(product.profitMarginPercent || 0).toFixed(1)}%</td>
                 <td style="text-align: center;">${product.currentStock}</td>
             </tr>
             `).join('')}
@@ -505,5 +586,9 @@ export class ReportsComponent {
     } catch (e) {
       return '$' + n.toFixed(0);
     }
+  }
+
+  isProfitSummaryResult() {
+    return this.result && this.result.summary && this.result.summary.total_profit !== undefined;
   }
 }

@@ -52,6 +52,7 @@ export class ElectronService {
   async setThermalPaperWidth(width: number) { return (window as any).api.setThermalPaperWidth(width); }
   async testBasicPrint(printerName: string) { return (window as any).api.testBasicPrint(printerName); }
   async printThermalLegacy(data: any) { return (window as any).api.printThermalLegacy(data); }
+  async testESCPOSCommands(printerName: string) { return (window as any).api.testESCPOSCommands(printerName); }
 
   // WhatsApp (compat)
   async sendWhatsAppInvoice(data: any) { return (window as any).api.sendWhatsAppInvoice(data); }
@@ -76,6 +77,11 @@ export class ElectronService {
   async getFrequency(from: string, to: string) { return (window as any).api.getFrequency(from, to); }
   async getDailyClosure(date: string) { return (window as any).api.getDailyClosure(date); }
   async exportReportPdf(html: string, defaultName: string) { return (window as any).api.exportReportPdf(html, defaultName); }
+
+  // Profit Reports
+  async getProfitByProduct(from: string, to: string) { return (window as any).api.getProfitByProduct(from, to); }
+  async getProfitByCategory(from: string, to: string) { return (window as any).api.getProfitByCategory(from, to); }
+  async getDailyProfitSummary(date: string) { return (window as any).api.getDailyProfitSummary(date); }
 
   // Configs
   async getConfig() { return (window as any).api.getConfig(); }

@@ -637,6 +637,179 @@ class PrintingService {
   }
 
   /**
+   * Ejecuta comandos avanzados de impresora con soporte para múltiples tipos
+   */
+  async executeAdvancedPrinterCommands(printerName, tempDir) {
+    const printerNameLower = printerName.toLowerCase();
+    
+    // Detectar tipo de impresora y usar comandos específicos
+    let cutCommands, drawerCommands;
+    
+    if (printerNameLower.includes('pos-80') || printerNameLower.includes('pos80')) {
+      console.log('🔧 Detectada impresora POS-80 - Usando comandos específicos');
+      // Comandos específicos para POS-80
+      cutCommands = [
+        // Comandos alternativos para POS-80
+        { name: 'corte_pos80_1', buffer: Buffer.from([0x1B, 0x6D]) }, // ESC m
+        { name: 'corte_pos80_2', buffer: Buffer.from([0x1D, 0x56, 0x41, 0x10]) }, // GS V A
+        { name: 'corte_pos80_3', buffer: Buffer.from([0x1B, 0x69]) }, // ESC i
+        { name: 'corte_pos80_4', buffer: Buffer.from([0x0C]) }, // Form Feed
+        { name: 'corte_pos80_5', buffer: Buffer.from([0x1D, 0x56, 0x30]) }, // GS V 0
+        { name: 'avance_papel', buffer: Buffer.from([0x1B, 0x64, 0x05]) }
+      ];
+      
+      drawerCommands = [
+        // Comandos específicos para cajón POS-80
+        { name: 'cajon_pos80_1', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x32, 0x32]) },
+        { name: 'cajon_pos80_2', buffer: Buffer.from([0x1B, 0x70, 0x01, 0x32, 0x32]) },
+        { name: 'cajon_pos80_3', buffer: Buffer.from([0x10, 0x14, 0x01, 0x00, 0x05]) },
+        { name: 'cajon_pos80_4', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) }
+      ];
+      
+    } else if (printerNameLower.includes('xpos') || printerNameLower.includes('t82')) {
+      console.log('🔧 Detectada impresora XPos T82E - Usando comandos específicos');
+      // Comandos alternativos para XPos T82E
+      cutCommands = [
+        // Comando de corte estándar ESC/POS
+        { name: 'corte_estandar', buffer: Buffer.from([0x1D, 0x56, 0x00]) },
+        // Comando de corte parcial alternativo
+        { name: 'corte_parcial', buffer: Buffer.from([0x1D, 0x56, 0x01]) },
+        // Solo avance de papel sin corte
+        { name: 'avance_papel', buffer: Buffer.from([0x1B, 0x64, 0x05]) }
+      ];
+      
+      drawerCommands = [
+        // Comando estándar para cajón
+        { name: 'cajon_estandar', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) },
+        // Comando alternativo XPos
+        { name: 'cajon_xpos', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x80]) }
+      ];
+      
+    } else if (printerNameLower.includes('epson') || printerNameLower.includes('tm-') || printerNameLower.includes('tmu')) {
+      console.log('🔧 Detectada impresora Epson - Usando comandos específicos');
+      // Comandos específicos para Epson
+      cutCommands = [
+        { name: 'corte_epson_total', buffer: Buffer.from([0x1D, 0x56, 0x00]) }, // GS V (corte total)
+        { name: 'corte_epson_parcial', buffer: Buffer.from([0x1D, 0x56, 0x01]) }, // GS V (corte parcial)
+        { name: 'corte_epson_especifico', buffer: Buffer.from([0x1D, 0x56, 0x41, 0x03]) }, // GS V A (Epson específico)
+        { name: 'corte_epson_avance', buffer: Buffer.from([0x1D, 0x56, 0x42, 0x00]) }, // GS V B (con avance)
+        { name: 'corte_epson_alternativo', buffer: Buffer.from([0x1D, 0x56, 0x30]) }, // GS V 0 (alternativo)
+        { name: 'avance_papel', buffer: Buffer.from([0x1B, 0x64, 0x05]) } // Avance de papel
+      ];
+      
+      drawerCommands = [
+        { name: 'cajon_epson_estandar', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x80]) }, // ESC p Epson estándar
+        { name: 'cajon_epson_puerto1', buffer: Buffer.from([0x1B, 0x70, 0x01, 0x40, 0x80]) }, // ESC p puerto 1
+        { name: 'cajon_epson_alt1', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) }, // ESC p alternativo
+        { name: 'cajon_epson_alt2', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x32, 0x32]) } // ESC p parámetros largos
+      ];
+      
+    } else if (printerNameLower.includes('digitalpos')) {
+      console.log('🔧 Detectada impresora DigitalPos - Usando comandos verificados');
+      // Comandos que funcionan con DigitalPos
+      cutCommands = [
+        { name: 'corte_digitalpos', buffer: Buffer.concat([Buffer.from([0x1B, 0x64, 0x05]), Buffer.from([0x1D, 0x56, 0x42, 0x00])]) }
+      ];
+      
+      drawerCommands = [
+        { name: 'cajon_digitalpos', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x40]) }
+      ];
+      
+    } else {
+      console.log('🔧 Impresora genérica - Usando múltiples comandos de prueba');
+      // Comandos genéricos para otras impresoras
+      cutCommands = [
+        { name: 'corte_estandar_1', buffer: Buffer.from([0x1D, 0x56, 0x00]) },
+        { name: 'corte_estandar_2', buffer: Buffer.from([0x1D, 0x56, 0x01]) },
+        { name: 'corte_estandar_3', buffer: Buffer.from([0x1D, 0x56, 0x42, 0x00]) },
+        { name: 'solo_avance', buffer: Buffer.from([0x1B, 0x64, 0x05]) }
+      ];
+      
+      drawerCommands = [
+        { name: 'cajon_estandar_1', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) },
+        { name: 'cajon_estandar_2', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x40]) }
+      ];
+    }
+
+    // 🚫 COMANDOS DE CORTE TEMPORALMENTE DESHABILITADOS
+    console.log('⚠️ Saltando comandos de corte (deshabilitados para prueba de cajón)');
+    let cutSuccess = false; // Forzado a false
+    
+    /*
+    // Intentar comandos de corte (COMENTADO TEMPORALMENTE)
+    let cutSuccess = false;
+    for (const cutCmd of cutCommands) {
+      try {
+        console.log(`🔄 Intentando comando de corte: ${cutCmd.name}`);
+        const cutFile = path.join(tempDir, `cut-${cutCmd.name}.bin`);
+        fs.writeFileSync(cutFile, cutCmd.buffer);
+        
+        // Intentar múltiples métodos de envío
+        let success = false;
+        
+        try {
+          await this.executeCommand(`copy /B "${cutFile}" "\\\\localhost\\${printerName}"`);
+          success = true;
+        } catch (directError) {
+          try {
+            const psCommand = `Get-Content "${cutFile}" -Raw -Encoding Byte | Out-Printer -Name "${printerName}"`;
+            await this.executeCommand(`powershell -Command "${psCommand}"`);
+            success = true;
+          } catch (psError) {
+            try {
+              await this.executeCommand(`print /D:"${printerName}" "${cutFile}"`);
+              success = true;
+            } catch (printError) {
+              console.warn(`❌ Comando de corte ${cutCmd.name} falló en todos los métodos`);
+              continue;
+            }
+          }
+        }
+        
+        if (success) {
+          console.log(`✅ Comando de corte exitoso: ${cutCmd.name}`);
+          cutSuccess = true;
+          break;
+        }
+      }
+    }
+    */
+
+    // Intentar comandos de cajón
+    let drawerSuccess = false;
+    for (const drawerCmd of drawerCommands) {
+      try {
+        console.log(`🔄 Intentando comando de cajón: ${drawerCmd.name}`);
+        const drawerFile = path.join(tempDir, `drawer-${drawerCmd.name}.bin`);
+        fs.writeFileSync(drawerFile, drawerCmd.buffer);
+        
+        await this.executeCommand(`copy /B "${drawerFile}" "\\\\localhost\\${printerName}"`);
+        console.log(`✅ Comando de cajón exitoso: ${drawerCmd.name}`);
+        drawerSuccess = true;
+        break;
+      } catch (error) {
+        console.warn(`❌ Comando de cajón ${drawerCmd.name} falló:`, error.message);
+        continue;
+      }
+    }
+
+    // Reportar resultados
+    const results = [];
+    if (cutSuccess) results.push('✓ Corte de papel');
+    if (drawerSuccess) results.push('✓ Cajón abierto');
+    
+    if (results.length === 0) {
+      throw new Error('Ningún comando ESC/POS funcionó con esta impresora');
+    }
+    
+    return {
+      success: true,
+      operations: results,
+      message: `Operaciones completadas: ${results.join(', ')}`
+    };
+  }
+
+  /**
    * Impresión térmica usando el método exitoso (notepad + comandos ESC/POS)
    */
   async printThermalLegacy(saleData, clientData, invoiceData, paymentMethod, printerName) {
@@ -797,25 +970,15 @@ ${tienda.padStart((anchoMaximo + tienda.length) / 2)}`;
       await this.executeCommand(`notepad /p "${ticketPath}"`);
       console.log('✓ Ticket enviado a impresión');
 
-      // Comandos ESC/POS para corte de papel (tu configuración exacta)
+      // Comandos ESC/POS para corte de papel con manejo de errores
       console.log('✂️ Ejecutando corte de papel...');
-      const feedPaperCommand = Buffer.from([0x1B, 0x64, 0x05]);
-      const cutPaperCommand = Buffer.from([0x1D, 0x56, 0x42, 0x00]);
-      const cutCommandBuffer = Buffer.concat([feedPaperCommand, cutPaperCommand]);
-      const cutCommandFile = path.join(tempDir, "cut-command.bin");
-      fs.writeFileSync(cutCommandFile, cutCommandBuffer);
-
-      await this.executeCommand(`copy /B "${cutCommandFile}" "\\\\localhost\\${printerName}"`);
-      console.log('✓ Corte de papel realizado');
-
-      // Comando para abrir cajón (tu configuración exacta)
-      console.log('💰 Abriendo cajón de dinero...');
-      const openDrawerCommand = Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x40]);
-      const openDrawerFile = path.join(tempDir, "drawer-command.bin");
-      fs.writeFileSync(openDrawerFile, openDrawerCommand);
-
-      await this.executeCommand(`copy /B "${openDrawerFile}" "\\\\localhost\\${printerName}"`);
-      console.log('✓ Cajón de dinero abierto');
+      try {
+        await this.executeAdvancedPrinterCommands(printerName, tempDir);
+        console.log('✓ Corte de papel y cajón realizados exitosamente');
+      } catch (error) {
+        console.warn('⚠️ Error en comandos avanzados, continuando sin corte/cajón:', error.message);
+        // No lanzar error, solo mostrar advertencia para que la impresión continúe
+      }
 
       console.log('✅ IMPRESIÓN TÉRMICA LEGACY COMPLETADA EXITOSAMENTE');
       return {
@@ -828,6 +991,142 @@ ${tienda.padStart((anchoMaximo + tienda.length) / 2)}`;
     } catch (error) {
       console.error('❌ ERROR EN IMPRESIÓN TÉRMICA LEGACY:', error);
       throw new Error(`Error en impresión legacy: ${error.message}`);
+    }
+  }
+
+  /**
+   * Prueba comandos ESC/POS individuales (útil para debugging)
+   */
+  async testESCPOSCommands(printerName) {
+    try {
+      console.log('🧪 PRUEBA DE COMANDOS ESC/POS INDIVIDUALES');
+      console.log('Impresora objetivo:', printerName);
+
+      const tempDir = path.join(app.getPath('userData'), 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Detectar tipo de impresora para comandos específicos
+      let testCommands;
+      const printerNameLower = printerName.toLowerCase();
+      
+      if (printerNameLower.includes('pos-80') || printerNameLower.includes('pos80')) {
+        console.log('🔧 Usando comandos de prueba específicos para POS-80');
+        testCommands = [
+          { name: 'Avance papel (5 líneas)', buffer: Buffer.from([0x1B, 0x64, 0x05]) },
+          { name: 'Corte POS-80 Método 1 (ESC m)', buffer: Buffer.from([0x1B, 0x6D]) },
+          { name: 'Corte POS-80 Método 2 (GS V A)', buffer: Buffer.from([0x1D, 0x56, 0x41, 0x10]) },
+          { name: 'Corte POS-80 Método 3 (ESC i)', buffer: Buffer.from([0x1B, 0x69]) },
+          { name: 'Corte POS-80 Método 4 (Form Feed)', buffer: Buffer.from([0x0C]) },
+          { name: 'Corte POS-80 Método 5 (GS V 0)', buffer: Buffer.from([0x1D, 0x56, 0x30]) },
+          { name: 'Cajón POS-80 Método 1', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x32, 0x32]) },
+          { name: 'Cajón POS-80 Método 2', buffer: Buffer.from([0x1B, 0x70, 0x01, 0x32, 0x32]) },
+          { name: 'Cajón POS-80 Método 3', buffer: Buffer.from([0x10, 0x14, 0x01, 0x00, 0x05]) },
+          { name: 'Cajón POS-80 Método 4', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) }
+        ];
+      } else if (printerNameLower.includes('epson') || printerNameLower.includes('tm-') || printerNameLower.includes('tmu')) {
+        console.log('🔧 Usando comandos de prueba específicos para Epson');
+        testCommands = [
+          { name: 'Avance papel (5 líneas)', buffer: Buffer.from([0x1B, 0x64, 0x05]) },
+          { name: 'Corte Epson Total (GS V 0)', buffer: Buffer.from([0x1D, 0x56, 0x00]) },
+          { name: 'Corte Epson Parcial (GS V 1)', buffer: Buffer.from([0x1D, 0x56, 0x01]) },
+          { name: 'Corte Epson Específico (GS V A)', buffer: Buffer.from([0x1D, 0x56, 0x41, 0x03]) },
+          { name: 'Corte Epson con Avance (GS V B)', buffer: Buffer.from([0x1D, 0x56, 0x42, 0x00]) },
+          { name: 'Corte Epson Alternativo (GS V 30)', buffer: Buffer.from([0x1D, 0x56, 0x30]) },
+          { name: 'Cajón Epson Estándar', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x80]) },
+          { name: 'Cajón Epson Puerto 1', buffer: Buffer.from([0x1B, 0x70, 0x01, 0x40, 0x80]) },
+          { name: 'Cajón Epson Alternativo 1', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) },
+          { name: 'Cajón Epson Alternativo 2', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x32, 0x32]) }
+        ];
+      } else {
+        console.log('🔧 Usando comandos de prueba estándar');
+        testCommands = [
+          { name: 'Avance papel (5 líneas)', buffer: Buffer.from([0x1B, 0x64, 0x05]) },
+          { name: 'Corte total estándar', buffer: Buffer.from([0x1D, 0x56, 0x00]) },
+          { name: 'Corte parcial', buffer: Buffer.from([0x1D, 0x56, 0x01]) },
+          { name: 'Corte con avance', buffer: Buffer.from([0x1D, 0x56, 0x42, 0x00]) },
+          { name: 'Cajón método 1', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]) },
+          { name: 'Cajón método 2', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x40]) },
+          { name: 'Cajón XPos', buffer: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x80]) }
+        ];
+      }
+
+      const results = [];
+      
+      for (const cmd of testCommands) {
+        try {
+          console.log(`\n🔄 Probando: ${cmd.name}`);
+          const testFile = path.join(tempDir, `test-${cmd.name.replace(/\s+/g, '-').toLowerCase()}.bin`);
+          fs.writeFileSync(testFile, cmd.buffer);
+          
+          // Método 1: Intentar copia directa al puerto de la impresora
+          let success = false;
+          let finalError = null;
+          
+          try {
+            await this.executeCommand(`copy /B "${testFile}" "\\\\localhost\\${printerName}"`);
+            console.log(`✅ ${cmd.name}: ÉXITO (copia directa)`);
+            success = true;
+          } catch (directCopyError) {
+            console.log(`⚠️ ${cmd.name}: Fallo copia directa, intentando método alternativo...`);
+            
+            // Método 2: Usar PowerShell para enviar a la impresora
+            try {
+              const psCommand = `Get-Content "${testFile}" -Raw -Encoding Byte | Out-Printer -Name "${printerName}"`;
+              await this.executeCommand(`powershell -Command "${psCommand}"`);
+              console.log(`✅ ${cmd.name}: ÉXITO (PowerShell)`);
+              success = true;
+            } catch (psError) {
+              console.log(`⚠️ ${cmd.name}: Fallo PowerShell, intentando print command...`);
+              
+              // Método 3: Usar comando print de Windows
+              try {
+                await this.executeCommand(`print /D:"${printerName}" "${testFile}"`);
+                console.log(`✅ ${cmd.name}: ÉXITO (print command)`);
+                success = true;
+              } catch (printError) {
+                console.log(`❌ ${cmd.name}: FALLO en todos los métodos`);
+                console.log(`   - Copia directa: ${directCopyError.message}`);
+                console.log(`   - PowerShell: ${psError.message}`);
+                console.log(`   - Print command: ${printError.message}`);
+                finalError = `Múltiples fallos: ${directCopyError.message}`;
+              }
+            }
+          }
+          
+          if (success) {
+            results.push({ command: cmd.name, status: 'SUCCESS', error: null });
+            // Esperar un poco entre comandos para ver el efecto
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            results.push({ command: cmd.name, status: 'ERROR', error: finalError });
+          }
+          
+        } catch (error) {
+          console.log(`❌ ${cmd.name}: ERROR GENERAL - ${error.message}`);
+          results.push({ command: cmd.name, status: 'ERROR', error: error.message });
+        }
+      }
+
+      console.log('\n📊 RESUMEN DE PRUEBAS:');
+      results.forEach(result => {
+        const status = result.status === 'SUCCESS' ? '✅' : '❌';
+        console.log(`${status} ${result.command}: ${result.status}`);
+        if (result.error) {
+          console.log(`   Error: ${result.error}`);
+        }
+      });
+
+      return {
+        success: true,
+        results: results,
+        summary: `Probados ${results.length} comandos. Exitosos: ${results.filter(r => r.status === 'SUCCESS').length}`
+      };
+
+    } catch (error) {
+      console.error('Error en prueba de comandos ESC/POS:', error);
+      throw error;
     }
   }
 

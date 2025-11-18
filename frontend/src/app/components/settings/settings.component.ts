@@ -385,6 +385,13 @@ interface WhatsAppConfig {
                           <i class="fas fa-magic me-2"></i>
                           Método Exitoso
                         </button>
+                        <button type="button" 
+                                class="btn btn-info btn-sm"
+                                (click)="testESCPOSCommands('POS-80')"
+                                title="Probar comandos ESC/POS específicos para POS-80">
+                          <i class="fas fa-wrench me-2"></i>
+                          Prueba ESC/POS (POS-80)
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1196,6 +1203,48 @@ export class SettingsComponent implements OnInit {
   async executeLegacyPrint(printerName: string): Promise<void> {
     // Mantener método original para compatibilidad
     return this.executeLegacyPrintWithConfig(printerName);
+  }
+
+  async testESCPOSCommands(printerName: string): Promise<void> {
+    try {
+      console.log('🧪 Iniciando prueba de comandos ESC/POS...');
+      
+      if (!printerName || !printerName.trim()) {
+        this.notificationService.warning('Campo Requerido', 'Debe ingresar el nombre de la impresora');
+        return;
+      }
+
+      this.notificationService.info('Prueba Iniciada', `Iniciando prueba de comandos ESC/POS en: ${printerName.trim()}. Observa la impresora para ver qué comandos funcionan.`);
+
+      const result = await this.electronService.testESCPOSCommands(printerName.trim());
+      
+      console.log('📊 Resultados de la prueba:', result);
+
+      // Crear resumen de resultados
+      const successfulCommands = result.results.filter((r: any) => r.status === 'SUCCESS');
+      const failedCommands = result.results.filter((r: any) => r.status === 'ERROR');
+      
+      let message = `Prueba completada en ${printerName.trim()}.\n\n`;
+      message += `✅ Comandos exitosos (${successfulCommands.length}):\n`;
+      successfulCommands.forEach((cmd: any) => {
+        message += `• ${cmd.command}\n`;
+      });
+      
+      if (failedCommands.length > 0) {
+        message += `\n❌ Comandos fallidos (${failedCommands.length}):\n`;
+        failedCommands.forEach((cmd: any) => {
+          message += `• ${cmd.command}\n`;
+        });
+      }
+
+      message += '\n🔧 Los comandos exitosos se usarán automáticamente con tu impresora.';
+
+      this.notificationService.success('Prueba Completada', message);
+      
+    } catch (error) {
+      console.error('❌ Error en prueba de comandos ESC/POS:', error);
+      this.notificationService.error('Error Prueba', `Error probando comandos ESC/POS en ${printerName.trim()}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
   }
 
   // Funciones para manejar el diálogo de impresora

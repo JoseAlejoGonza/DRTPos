@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('api', {
   setThermalPaperWidth: (width) => ipcRenderer.invoke('print:setThermalWidth', width),
   testBasicPrint: (printerName) => ipcRenderer.invoke('print:testBasic', printerName),
   printThermalLegacy: (data) => ipcRenderer.invoke('print:thermalLegacy', data),
+  testESCPOSCommands: (printerName) => ipcRenderer.invoke('print:testESCPOS', printerName),
 
   // WhatsApp
   sendWhatsAppInvoice: (data) => ipcRenderer.invoke('whatsapp:sendInvoice', data),
@@ -76,6 +77,11 @@ contextBridge.exposeInMainWorld('api', {
   getFrequency: (from, to) => ipcRenderer.invoke('reports:frequency', { from, to }),
   getDailyClosure: (date) => ipcRenderer.invoke('reports:dailyClosure', { date }),
   exportReportPdf: (html, defaultName) => ipcRenderer.invoke('reports:exportPdf', { html, defaultName }),
+
+  // Profit Reports
+  getProfitByProduct: (from, to) => ipcRenderer.invoke('reports:getProfitByProduct', { startDate: from, endDate: to }),
+  getProfitByCategory: (from, to) => ipcRenderer.invoke('reports:getProfitByCategory', { startDate: from, endDate: to }),
+  getDailyProfitSummary: (date) => ipcRenderer.invoke('reports:getDailyProfitSummary', date),
 
   // Configuración
   getConfig: () => ipcRenderer.invoke('config:getAll'),

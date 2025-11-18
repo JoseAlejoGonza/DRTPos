@@ -25,6 +25,7 @@ export class AddProductsComponent implements OnInit {
     code: '',
     name: '',
     price: null,
+    cost_price: null,
     stock: null,
     color: '',
     category_id: null
@@ -71,8 +72,21 @@ export class AddProductsComponent implements OnInit {
 
   ngOnChanges() {
     if (this.productInput) {
+      console.log('🔍 Cargando producto para editar:', {
+        productInput: this.productInput,
+        cost_price_original: this.productInput.cost_price
+      });
+      
       this.product = { ...this.productInput };
       this.product.image = this.productInput.imagen || '';
+      // Asegurar que cost_price se copie correctamente
+      this.product.cost_price = this.productInput.cost_price || 0;
+      
+      console.log('🔍 Producto después de carga:', {
+        cost_price_final: this.product.cost_price,
+        product: this.product
+      });
+      
       if (this.product.image && this.isUrl(this.product.image)) {
         // No modificar
       } else if (this.product.image && !this.product.image.startsWith('file://')) {
@@ -84,6 +98,7 @@ export class AddProductsComponent implements OnInit {
         code: '',
         name: '',
         price: null,
+        cost_price: null,
         stock: null,
         color: '',
         category_id: null
@@ -121,20 +136,28 @@ export class AddProductsComponent implements OnInit {
   }
 
   async saveProduct() {
-    if (!this.product.name || this.product.price <= 0 || this.product.stock < 1 || !this.product.category_id || !this.product.color) {
-      this.notificationService.warning('Campos Obligatorios', 'Nombre, precio, cantidad, color y categoría son obligatorios');
+    if (!this.product.name || this.product.price <= 0 || !this.product.cost_price || this.product.cost_price <= 0 || this.product.stock < 1 || !this.product.category_id || !this.product.color) {
+      this.notificationService.warning('Campos Obligatorios', 'Nombre, precio de venta, costo real, cantidad, color y categoría son obligatorios');
+      return;
+    }
+    
+    // Validar que el precio de venta sea mayor al costo
+    if (this.product.price <= this.product.cost_price) {
+      this.notificationService.warning('Error de Precios', 'El precio de venta debe ser mayor al costo real del producto');
       return;
     }
     if(this.archivoSeleccionado !== '') {
       this.product.image = this.archivoSeleccionado;
     }
     if (this.product.id) {
-      // Sincronizar imagen editada de vuelta a productInput.imagen si aplica
-      // console.log(this.product, 'esto es antes del if');
-      // if (this.productInput) {
-      //   this.product.image = this.productInput.imagen;
-      // }
-      console.log(this.product, 'esto es despues del if');
+      // Debugging para verificar que cost_price esté incluido
+      console.log('🔍 Actualizando producto:', {
+        id: this.product.id,
+        name: this.product.name,
+        price: this.product.price,
+        cost_price: this.product.cost_price,
+        stock: this.product.stock
+      });
 
       await this.electronService.updateProduct(this.product); // Editar producto existente
     } else {
