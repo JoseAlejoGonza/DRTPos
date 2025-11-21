@@ -272,15 +272,13 @@
       <!-- Información Adicional del Método Seleccionado -->
       <div class="selected-method-info" *ngIf="selectedPaymentMethod">
         <div class="info-card">
-          <div class="method-details" [ngSwitch]="selectedPaymentMethod">
-            <!-- Efectivo -->
-            <div *ngSwitchCase="'cash'" class="cash-info">
-              <h6><i class="fas fa-money-bill-wave me-2"></i>Pago en Efectivo</h6>
-              <p>El cliente pagará en efectivo al momento de la entrega o en punto de venta.</p>
-              
-              <!-- Campo de Descuento -->
-              <div class="discount-section mb-3">
-                <label class="form-label">Descuento Aplicado (Opcional):</label>
+          
+          <!-- Campo de Descuento - Disponible para todos los métodos -->
+          <div class="discount-section mb-4">
+            <h6><i class="fas fa-percent me-2"></i>Descuento (Opcional)</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label">Descuento Aplicado:</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
                   <input type="number"
@@ -301,42 +299,31 @@
                   Si aplica descuento, debe ser mínimo $500
                 </small>
               </div>
+              <div class="col-md-6">
+                <label class="form-label">
+                  Total a Pagar:
+                  <span *ngIf="discount > 0" class="text-success">
+                    (con descuento)
+                  </span>
+                </label>
+                <input type="text" 
+                       class="form-control fw-bold text-primary" 
+                       [value]="total | currency"
+                       name="totalToPay"
+                       readonly>
+              </div>
+            </div>
+          </div>
+
+          <div class="method-details" [ngSwitch]="selectedPaymentMethod">
+            <!-- Efectivo -->
+            <div *ngSwitchCase="'cash'" class="cash-info">
+              <h6><i class="fas fa-money-bill-wave me-2"></i>Pago en Efectivo</h6>
+              <p>El cliente pagará en efectivo al momento de la entrega o en punto de venta.</p>
 
               <!-- Calculadora de vueltas -->
               <div class="cash-calculator">
                 <div class="row">
-                  <div class="col-md-6">
-                    <label class="form-label">Total Original:</label>
-                    <input type="text" 
-                           class="form-control text-muted" 
-                           [value]="originalTotal | currency"
-                           name="originalTotal"
-                           readonly>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">
-                      Total a Pagar:
-                      <span *ngIf="discount > 0" class="text-success">
-                        (con descuento)
-                      </span>
-                    </label>
-                    <input type="text" 
-                           class="form-control fw-bold" 
-                           [value]="total | currency"
-                           name="totalToPay"
-                           readonly>
-                  </div>
-                </div>
-                <div class="row mt-2">
-                  <div class="col-md-6" *ngIf="discount > 0">
-                    <small class="text-success">
-                      <i class="fas fa-tag me-1"></i>
-                      Descuento aplicado: {{ discount | currency }}
-                    </small>
-                  </div>
-                  <div class="col-md-6"></div>
-                </div>
-                <div class="row mt-2">
                   <div class="col-md-6"></div>
                   <div class="col-md-6">
                     <label class="form-label">Dinero Recibido:</label>
@@ -385,10 +372,16 @@
               <p>Aceptamos tarjetas de crédito y débito Visa, Mastercard y American Express.</p>
             </div>
             
-            <!-- Transferencia -->
-            <div *ngSwitchCase="'transfer'" class="transfer-info">
-              <h6><i class="fas fa-exchange-alt me-2"></i>Transferencia Bancaria</h6>
-              <p>Se proporcionarán los datos bancarios para realizar la transferencia.</p>
+            <!-- NEQUI -->
+            <div *ngSwitchCase="'nequi'" class="nequi-info">
+              <h6><i class="fas fa-mobile-alt me-2"></i>NEQUI</h6>
+              <p>Pago a través de la aplicación NEQUI. Se proporcionará el número de teléfono para la transferencia.</p>
+            </div>
+            
+            <!-- Daviplata -->
+            <div *ngSwitchCase="'daviplata'" class="daviplata-info">
+              <h6><i class="fas fa-mobile-alt me-2"></i>Daviplata</h6>
+              <p>Pago a través de la aplicación Daviplata. Se proporcionará el número de teléfono para la transferencia.</p>
             </div>
             
             <!-- QR -->

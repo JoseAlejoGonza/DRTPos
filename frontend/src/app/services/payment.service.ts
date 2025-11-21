@@ -51,10 +51,17 @@ export class PaymentService {
       enabled: true
     },
     {
-      id: 'transfer',
-      name: 'Transferencia',
-      icon: 'fas fa-exchange-alt',
-      description: 'Transferencia bancaria',
+      id: 'nequi',
+      name: 'NEQUI',
+      icon: 'fas fa-mobile-alt',
+      description: 'Pago con NEQUI',
+      enabled: true
+    },
+    {
+      id: 'daviplata',
+      name: 'Daviplata',
+      icon: 'fas fa-mobile-alt',
+      description: 'Pago con Daviplata',
       enabled: true
     },
     {

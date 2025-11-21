@@ -1,0 +1,82 @@
+.main-app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-bar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  .welcome-text {
+    font-weight: 500;
+    font-size: 1rem;
+  }
+  
+  .user-role {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    padding: 0.25rem 0.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    
+    &.admin {
+      background: rgba(255, 215, 0, 0.3);
+      color: #ffd700;
+      font-weight: 600;
+    }
+  }
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  i {
+    font-size: 1rem;
+  }
+}
+
+.login-container {
+  height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .user-bar {
+    padding: 0.5rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .user-info {
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: center;
+  }
+}

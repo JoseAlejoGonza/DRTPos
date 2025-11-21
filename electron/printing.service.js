@@ -2,6 +2,7 @@ const { BrowserWindow, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
+const printer = require('node-printer');
 
 /**
  * Servicio de impresión para POS
@@ -637,7 +638,129 @@ class PrintingService {
   }
 
   /**
-   * Ejecuta comandos avanzados de impresora con soporte para múltiples tipos
+   * Método directo mejorado para corte y apertura de cajón
+   */
+  async executeDirectPrinterCommands(printerName, tempDir) {
+    console.log('🔧 Ejecutando comandos ESC/POS con método directo mejorado...');
+    
+    // Crear comandos básicos que funcionan con la mayoría de impresoras POS
+    const commands = {
+      // Comando para avanzar papel (ayuda a completar la impresión)
+      advance: Buffer.from([0x1B, 0x64, 0x05]), // ESC d 5 (avanzar 5 líneas)
+      // Comando de corte total estándar
+      cut: Buffer.from([0x1D, 0x56, 0x00]), // GS V 0
+      // Comando alternativo de corte parcial
+      cutPartial: Buffer.from([0x1D, 0x56, 0x01]), // GS V 1
+      // Comando para abrir cajón - estándar
+      drawer1: Buffer.from([0x1B, 0x70, 0x00, 0x19, 0x19]), // ESC p 0 25 25
+      // Comando alternativo para cajón
+      drawer2: Buffer.from([0x1B, 0x70, 0x00, 0x40, 0x40])  // ESC p 0 64 64
+    };
+    
+    let success = false;
+    let operations = [];
+    
+    // 1. Primero avanzar papel para completar impresión
+    try {
+      console.log('📄 Avanzando papel para completar impresión...');
+      const advanceFile = path.join(tempDir, 'advance.bin');
+      fs.writeFileSync(advanceFile, commands.advance);
+      await this.executeCommand(`copy /B "${advanceFile}" "\\\\localhost\\${printerName}"`);
+      operations.push('✓ Papel avanzado');
+    } catch (error) {
+      console.warn('⚠️ Error avanzando papel:', error.message);
+    }
+    
+    // 2. Intentar abrir cajón con comandos estándar
+    for (const [name, cmd] of Object.entries({ drawer1: commands.drawer1, drawer2: commands.drawer2 })) {
+      try {
+        console.log(`💼 Intentando abrir cajón con ${name}...`);
+        const drawerFile = path.join(tempDir, `${name}.bin`);
+        fs.writeFileSync(drawerFile, cmd);
+        await this.executeCommand(`copy /B "${drawerFile}" "\\\\localhost\\${printerName}"`);
+        operations.push('✓ Cajón abierto');
+        success = true;
+        break;
+      } catch (error) {
+        console.warn(`⚠️ Error con ${name}:`, error.message);
+      }
+    }
+    
+    // 3. Intentar cortar papel
+    for (const [name, cmd] of Object.entries({ cut: commands.cut, cutPartial: commands.cutPartial })) {
+      try {
+        console.log(`✂️ Intentando cortar papel con ${name}...`);
+        const cutFile = path.join(tempDir, `${name}.bin`);
+        fs.writeFileSync(cutFile, cmd);
+        await this.executeCommand(`copy /B "${cutFile}" "\\\\localhost\\${printerName}"`);
+        operations.push('✓ Papel cortado');
+        success = true;
+        break;
+      } catch (error) {
+        console.warn(`⚠️ Error con ${name}:`, error.message);
+      }
+    }
+    
+    if (!success && operations.length === 0) {
+      throw new Error('No se pudieron ejecutar comandos ESC/POS con método directo');
+    }
+    
+    return {
+      success: true,
+      operations: operations,
+      message: `Operaciones completadas: ${operations.join(', ')}`
+    };
+  }
+
+  /**
+   * Ejecuta comandos avanzados usando node-printer (método RAW recomendado)
+   */
+  async executeAdvancedPrinterCommandsRAW(printerName) {
+    console.log('🔧 Ejecutando comandos ESC/POS con node-printer (RAW)...');
+    
+    try {
+      // 1. Comando de Inicialización (opcional, pero buena práctica)
+      const initialize = Buffer.from([0x1B, 0x40]); // ESC @
+      
+      // 2. Comando para abrir el cajón (ESC p 0 25 250)
+      const openDrawer = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]); // [27, 112, 0, 25, 250]
+      
+      // 3. Comando para Corte Total (GS V 0)
+      const fullCut = Buffer.from([0x1D, 0x56, 0x00]); // [29, 86, 0]
+      
+      // 4. Combinar todos los comandos
+      const commands = Buffer.concat([initialize, openDrawer, fullCut]);
+      
+      // 5. Enviar el buffer de comandos a la impresora
+      return new Promise((resolve, reject) => {
+        printer.printDirect({
+          data: commands,
+          printer: printerName, // El nombre de la impresora que ya tienes
+          type: 'RAW', // **Importante:** Envía los datos sin procesamiento del driver
+          success: (jobId) => {
+            console.log(`✅ Comandos de corte/cajón enviados exitosamente (Job ID: ${jobId})`);
+            resolve({
+              success: true,
+              jobId: jobId,
+              operations: ['✓ Cajón abierto', '✓ Corte de papel'],
+              message: 'Operaciones completadas: Cajón abierto, Corte de papel'
+            });
+          },
+          error: (err) => {
+            console.error("❌ Error al enviar comandos avanzados:", err);
+            reject(new Error(`Error en node-printer: ${err.message || err}`));
+          }
+        });
+      });
+      
+    } catch (error) {
+      console.error('❌ Error preparando comandos ESC/POS:', error);
+      throw new Error(`Error preparando comandos: ${error.message}`);
+    }
+  }
+
+  /**
+   * Ejecuta comandos avanzados de impresora con soporte para múltiples tipos (método legacy)
    */
   async executeAdvancedPrinterCommands(printerName, tempDir) {
     const printerNameLower = printerName.toLowerCase();
@@ -890,7 +1013,7 @@ class PrintingService {
       let total = saleData.total_with_discount || subtotal;
 
       // Ancho máximo de caracteres (tu configuración)
-      const anchoMaximo = 42;
+      const anchoMaximo = 24;
 
       // Construir encabezado dinámico
       let ticket = `
@@ -925,40 +1048,46 @@ Tel Cliente: ${clientData.phone_number}`;
 
       ticket += `
 ${"-".repeat(anchoMaximo)}
-Producto                 Cant.    Precio
+Producto   Cant.  Precio
 ${"-".repeat(anchoMaximo)}
 `;
 
       // Agregar productos (usando precios reales cobrados)
       saleData.items.forEach((item) => {
-        let nombre = item.name.length > 27 ? item.name.substring(0, 24) + "..." : item.name.padEnd(27, " ");
+        let nombre = item.name.length > 11 ? item.name.substring(0, 8) + ".." : item.name.padEnd(12, " ");
         let cantidad = item.quantity.toString().padEnd(2, " ");
         const realPrice = item.real_price || item.price;
-        let precio = `$${(realPrice * item.quantity).toFixed(0)}`.padStart(12, " ");
+        let precio = `$${(realPrice * item.quantity).toFixed(0)}`.padStart(10, " ");
         ticket += `${nombre}${cantidad}${precio}\n`;
       });
 
       ticket += `
 ${"-".repeat(anchoMaximo)}
-Subtotal:                       $${(subtotal/1.19).toFixed(0)}
-IVA (19%):                      $${iva.toFixed(0)}`;
+Subtotal:       $${(subtotal/1.19).toFixed(0)}
+IVA (19%):      $${iva.toFixed(0)}`;
       
       // Mostrar descuento si existe
       if (saleData.discount && saleData.discount > 0) {
         ticket += `
-Descuento:                     -$${saleData.discount.toFixed(0)}`;
+Descuento:     -$${saleData.discount.toFixed(0)}`;
       }
       
       ticket += `
 ${"-".repeat(anchoMaximo)}
-TOTAL:                          $${total.toFixed(0)}
+TOTAL:          $${total.toFixed(0)}
 ${"=".repeat(anchoMaximo)}
-Pago: ${paymentMethod}
+Pago:           ${paymentMethod}
 ${clientData ? `Cliente: ${clientData.name}` : ''}
 ${clientData ? `Doc: ${clientData.document_type} ${clientData.document_number}` : ''}
 ${"=".repeat(anchoMaximo)}
 ${"Gracias por su compra!".padStart((anchoMaximo + 20) / 2)}
-${tienda.padStart((anchoMaximo + tienda.length) / 2)}`;
+${tienda.padStart((anchoMaximo + tienda.length) / 2)}
+
+
+
+
+
+`; // Agregar múltiples saltos de línea finales para asegurar impresión completa
 
       // Escribir archivo de ticket
       console.log('📄 Escribiendo archivo de ticket...');
@@ -971,13 +1100,23 @@ ${tienda.padStart((anchoMaximo + tienda.length) / 2)}`;
       console.log('✓ Ticket enviado a impresión');
 
       // Comandos ESC/POS para corte de papel con manejo de errores
-      console.log('✂️ Ejecutando corte de papel...');
+      console.log('✂️ Ejecutando corte de papel y apertura de cajón...');
       try {
-        await this.executeAdvancedPrinterCommands(printerName, tempDir);
-        console.log('✓ Corte de papel y cajón realizados exitosamente');
-      } catch (error) {
-        console.warn('⚠️ Error en comandos avanzados, continuando sin corte/cajón:', error.message);
-        // No lanzar error, solo mostrar advertencia para que la impresión continúe
+        // Intentar método directo mejorado
+        console.log('🎯 Intentando método directo mejorado...');
+        await this.executeDirectPrinterCommands(printerName, tempDir);
+        console.log('✅ Corte de papel y cajón realizados exitosamente');
+      } catch (directError) {
+        console.warn('⚠️ Método directo falló, intentando método legacy:', directError.message);
+        try {
+          // Fallback al método legacy
+          console.log('🔄 Intentando método legacy como respaldo...');
+          await this.executeAdvancedPrinterCommands(printerName, tempDir);
+          console.log('✅ Corte de papel y cajón realizados exitosamente con método legacy');
+        } catch (legacyError) {
+          console.warn('⚠️ Ambos métodos fallaron, continuando sin corte/cajón:', legacyError.message);
+          // No lanzar error, solo mostrar advertencia para que la impresión continúe
+        }
       }
 
       console.log('✅ IMPRESIÓN TÉRMICA LEGACY COMPLETADA EXITOSAMENTE');

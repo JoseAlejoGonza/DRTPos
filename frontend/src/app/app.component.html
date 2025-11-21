@@ -1,8 +1,27 @@
+<!-- Mostrar contenido principal solo si está logueado -->
+<div *ngIf="isLoggedIn" class="main-app">
+    <!-- Barra superior con información del usuario -->
+    <div class="user-bar">
+        <div class="user-info">
+            <span class="welcome-text">Bienvenido, {{ currentUser?.full_name }}</span>
+            <span class="user-role" [class.admin]="currentUser?.user_type === 'admin'">
+                ({{ currentUser?.user_type === 'admin' ? 'Administrador' : 'Usuario General' }})
+            </span>
+        </div>
+        <button class="logout-btn" (click)="logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            Cerrar Sesión
+        </button>
+    </div>
+    
     <app-home></app-home>
     <router-outlet></router-outlet>
     
     <!-- Modal global para producto no encontrado -->
     <app-product-not-found-modal></app-product-not-found-modal>
-    
-    <!-- Botones de emergencia para fix de inputs -->
-    <app-emergency-fix></app-emergency-fix>
+</div>
+
+<!-- Mostrar router-outlet para login cuando no está logueado -->
+<div *ngIf="!isLoggedIn" class="login-container">
+    <router-outlet></router-outlet>
+</div>

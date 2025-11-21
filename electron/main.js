@@ -30,6 +30,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, '../frontend/src/assets/icons/icon-drt.png'), // Icono de la aplicación
     webPreferences: {
       preload: path.join(__dirname, './preload.js'),
       contextIsolation: true,
@@ -288,6 +289,60 @@ ipcMain.handle('reports:getProfitByCategory', (e, {startDate, endDate}) =>
   db.getProfitByCategory(startDate, endDate));
 ipcMain.handle('reports:getDailyProfitSummary', (e, date) => 
   db.getDailyProfitSummary(date));
+
+// USERS & AUTHENTICATION
+ipcMain.handle('auth:login', (e, {username, password}) => {
+  try {
+    const user = db.authenticateUser(username, password);
+    return { success: true, user };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:getAll', () => {
+  try {
+    return { success: true, users: db.getAllUsers() };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:create', (e, userData) => {
+  try {
+    const result = db.createUser(userData);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:update', (e, userData) => {
+  try {
+    const result = db.updateUser(userData);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:delete', (e, id) => {
+  try {
+    const result = db.deleteUser(id);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('users:changePassword', (e, {userId, currentPassword, newPassword}) => {
+  try {
+    const result = db.changePassword(userId, currentPassword, newPassword);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 ipcMain.handle('open-image-dialog', async (event) => {
     const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
         properties: ['openFile'],

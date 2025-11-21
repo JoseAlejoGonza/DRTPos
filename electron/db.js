@@ -137,6 +137,32 @@ db.prepare(`CREATE TABLE IF NOT EXISTS detail_sales (
   FOREIGN KEY (id_sale) REFERENCES sales(id)
 )`).run();
 
+// Tabla de usuarios
+db.prepare(`CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  user_type TEXT NOT NULL DEFAULT 'general',
+  created_at TEXT NOT NULL,
+  last_login TEXT,
+  is_active INTEGER DEFAULT 1
+)`).run();
+
+// Crear usuario administrador por defecto si no existe
+try {
+  const adminExists = db.prepare("SELECT COUNT(*) as count FROM users WHERE user_type = 'admin'").get();
+  if (adminExists.count === 0) {
+    const crypto = require('crypto');
+    const defaultPassword = crypto.createHash('sha256').update('admin123').digest('hex');
+    db.prepare(`INSERT INTO users (username, password, full_name, user_type, created_at, is_active) 
+      VALUES (?, ?, ?, ?, ?, ?)`).run('admin', defaultPassword, 'Administrador', 'admin', new Date().toISOString(), 1);
+    console.log('✅ Usuario administrador creado por defecto (admin/admin123)');
+  }
+} catch (error) {
+  console.error('❌ Error creando usuario administrador por defecto:', error);
+}
+
 // Tabla de clientes
 db.prepare(`CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -299,10 +325,111 @@ function getDailyProfitSummary(date) {
   `).get(date);
 }
 
+// USERS - Funciones de autenticación y manejo de usuarios
+function authenticateUser(username, password) {
+  const crypto = require('crypto');
+  const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+  
+  const user = db.prepare(`
+    SELECT id, username, full_name, user_type, created_at, last_login, is_active 
+    FROM users 
+    WHERE username = ? AND password = ? AND is_active = 1
+  `).get(username, hashedPassword);
+  
+  if (user) {
+    // Actualizar último login
+    db.prepare('UPDATE users SET last_login = ? WHERE id = ?')
+      .run(new Date().toISOString(), user.id);
+  }
+  
+  return user;
+}
+
+function createUser(userData) {
+  const crypto = require('crypto');
+  const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
+  
+  return db.prepare(`
+    INSERT INTO users (username, password, full_name, user_type, created_at, is_active) 
+    VALUES (?, ?, ?, ?, ?, 1)
+  `).run(
+    userData.username,
+    hashedPassword,
+    userData.full_name,
+    userData.user_type || 'general',
+    new Date().toISOString()
+  );
+}
+
+function getAllUsers() {
+  return db.prepare(`
+    SELECT id, username, full_name, user_type, created_at, last_login, is_active 
+    FROM users 
+    ORDER BY created_at DESC
+  `).all();
+}
+
+function updateUser(userData) {
+  if (userData.password) {
+    const crypto = require('crypto');
+    const hashedPassword = crypto.createHash('sha256').update(userData.password).digest('hex');
+    return db.prepare(`
+      UPDATE users 
+      SET username = ?, password = ?, full_name = ?, user_type = ?, is_active = ?
+      WHERE id = ?
+    `).run(
+      userData.username,
+      hashedPassword,
+      userData.full_name,
+      userData.user_type,
+      userData.is_active ? 1 : 0,
+      userData.id
+    );
+  } else {
+    return db.prepare(`
+      UPDATE users 
+      SET username = ?, full_name = ?, user_type = ?, is_active = ?
+      WHERE id = ?
+    `).run(
+      userData.username,
+      userData.full_name,
+      userData.user_type,
+      userData.is_active ? 1 : 0,
+      userData.id
+    );
+  }
+}
+
+function deleteUser(id) {
+  // No permitir eliminar si es el único admin
+  const adminCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE user_type = "admin" AND is_active = 1').get();
+  const userToDelete = db.prepare('SELECT user_type FROM users WHERE id = ?').get(id);
+  
+  if (userToDelete && userToDelete.user_type === 'admin' && adminCount.count <= 1) {
+    throw new Error('No se puede eliminar el único usuario administrador');
+  }
+  
+  return db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(id);
+}
+
+function changePassword(userId, currentPassword, newPassword) {
+  const crypto = require('crypto');
+  const hashedCurrentPassword = crypto.createHash('sha256').update(currentPassword).digest('hex');
+  const hashedNewPassword = crypto.createHash('sha256').update(newPassword).digest('hex');
+  
+  // Verificar contraseña actual
+  const user = db.prepare('SELECT id FROM users WHERE id = ? AND password = ?').get(userId, hashedCurrentPassword);
+  if (!user) {
+    throw new Error('Contraseña actual incorrecta');
+  }
+  
+  return db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedNewPassword, userId);
+}
+
 function addProduct(product) {
   // Guarda la ruta local o URL como texto
-  return db.prepare('INSERT INTO products (imagen, name, price, cost_price, stock, color, category_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(product.image, product.name, product.price, product.cost_price || 0, product.stock, product.color || '', product.category_id || null);
+  return db.prepare('INSERT INTO products (imagen, code, name, price, cost_price, stock, color, category_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(product.image, product.code || '', product.name, product.price, product.cost_price || 0, product.stock, product.color || '', product.category_id || null);
 }
 
 function getProducts() {
@@ -338,10 +465,11 @@ function updateProduct(product) {
   
   const result = db.prepare(`
     UPDATE products
-    SET imagen = ?, name = ?, price = ?, cost_price = ?, stock = ?, color = ?, category_id = ?
+    SET imagen = ?, code = ?, name = ?, price = ?, cost_price = ?, stock = ?, color = ?, category_id = ?
     WHERE id = ?
   `).run(
     product.image,
+    product.code || '',
     product.name,
     product.price,
     product.cost_price || 0,
@@ -390,5 +518,12 @@ module.exports = {
   getProfitByProduct,
   getProfitByCategory,
   getDailyProfitSummary,
+  // Users
+  authenticateUser,
+  createUser,
+  getAllUsers,
+  updateUser,
+  deleteUser,
+  changePassword,
   db
 };

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
 import { ConfigService, AppConfig } from '../../services/config.service';
 import { NotificationService } from '../../services/notification.service';
+import { AuthService } from '../../services/auth.service';
 
 interface CompanyConfig {
   name: string;
@@ -47,7 +48,9 @@ interface WhatsAppConfig {
       <div class="settings-tabs">
         <nav>
           <div class="nav nav-tabs" id="nav-tab" role="tablist">
-            <button class="nav-link" 
+            <!-- Solo administradores pueden acceder a configuración de empresa -->
+            <button *ngIf="authService.isAdmin()" 
+                    class="nav-link" 
                     [class.active]="activeTab === 'company'"
                     (click)="activeTab = 'company'" 
                     type="button">
@@ -68,13 +71,16 @@ interface WhatsAppConfig {
               <i class="fab fa-whatsapp me-2"></i>
               WhatsApp
             </button> -->
-            <button class="nav-link" 
+            <!-- Solo administradores pueden acceder a configuración de impresión -->
+            <button *ngIf="authService.isAdmin()" 
+                    class="nav-link" 
                     [class.active]="activeTab === 'printing'"
                     (click)="activeTab = 'printing'" 
                     type="button">
               <i class="fas fa-print me-2"></i>
               Impresión
             </button>
+            <!-- Backup disponible para todos los usuarios -->
             <button class="nav-link" 
                     [class.active]="activeTab === 'backup'"
                     (click)="activeTab = 'backup'" 
@@ -86,8 +92,8 @@ interface WhatsAppConfig {
         </nav>
 
         <div class="tab-content">
-          <!-- Configuración de Empresa -->
-          <div class="tab-pane" [class.active]="activeTab === 'company'" *ngIf="activeTab === 'company'">
+          <!-- Configuración de Empresa - Solo administradores -->
+          <div class="tab-pane" [class.active]="activeTab === 'company'" *ngIf="activeTab === 'company' && authService.isAdmin()">
             <div class="config-section">
               <h5>Información de la Empresa</h5>
               
@@ -297,7 +303,7 @@ interface WhatsAppConfig {
           </div> -->
 
           <!-- Configuración de Impresión -->
-          <div class="tab-pane" [class.active]="activeTab === 'printing'" *ngIf="activeTab === 'printing'">
+          <div class="tab-pane" [class.active]="activeTab === 'printing'" *ngIf="activeTab === 'printing' && authService.isAdmin()">
             <div class="config-section">
               <h5>Configuración de Impresión</h5>
               
@@ -385,13 +391,13 @@ interface WhatsAppConfig {
                           <i class="fas fa-magic me-2"></i>
                           Método Exitoso
                         </button>
-                        <button type="button" 
+                        <!-- <button type="button" 
                                 class="btn btn-info btn-sm"
                                 (click)="testESCPOSCommands('POS-80')"
                                 title="Probar comandos ESC/POS específicos para POS-80">
                           <i class="fas fa-wrench me-2"></i>
                           Prueba ESC/POS (POS-80)
-                        </button>
+                        </button> -->
                       </div>
                     </div>
                   </div>
@@ -688,12 +694,20 @@ export class SettingsComponent implements OnInit {
   constructor(
     private electronService: ElectronService,
     private configService: ConfigService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    public authService: AuthService
   ) {}
 
   async ngOnInit(): Promise<void> {
     // Inicializar propiedades primero
     this.initializeDefaults();
+    
+    // Configurar pestaña inicial según el tipo de usuario
+    if (this.authService.isGeneral()) {
+      this.activeTab = 'backup';
+    } else {
+      this.activeTab = 'company';
+    }
     
     // Luego cargar configuración guardada
     await this.loadAllConfigs();
@@ -1205,47 +1219,47 @@ export class SettingsComponent implements OnInit {
     return this.executeLegacyPrintWithConfig(printerName);
   }
 
-  async testESCPOSCommands(printerName: string): Promise<void> {
-    try {
-      console.log('🧪 Iniciando prueba de comandos ESC/POS...');
+  // async testESCPOSCommands(printerName: string): Promise<void> {
+  //   try {
+  //     console.log('🧪 Iniciando prueba de comandos ESC/POS...');
       
-      if (!printerName || !printerName.trim()) {
-        this.notificationService.warning('Campo Requerido', 'Debe ingresar el nombre de la impresora');
-        return;
-      }
+  //     if (!printerName || !printerName.trim()) {
+  //       this.notificationService.warning('Campo Requerido', 'Debe ingresar el nombre de la impresora');
+  //       return;
+  //     }
 
-      this.notificationService.info('Prueba Iniciada', `Iniciando prueba de comandos ESC/POS en: ${printerName.trim()}. Observa la impresora para ver qué comandos funcionan.`);
+  //     this.notificationService.info('Prueba Iniciada', `Iniciando prueba de comandos ESC/POS en: ${printerName.trim()}. Observa la impresora para ver qué comandos funcionan.`);
 
-      const result = await this.electronService.testESCPOSCommands(printerName.trim());
+  //     const result = await this.electronService.testESCPOSCommands(printerName.trim());
       
-      console.log('📊 Resultados de la prueba:', result);
+  //     console.log('📊 Resultados de la prueba:', result);
 
-      // Crear resumen de resultados
-      const successfulCommands = result.results.filter((r: any) => r.status === 'SUCCESS');
-      const failedCommands = result.results.filter((r: any) => r.status === 'ERROR');
+  //     // Crear resumen de resultados
+  //     const successfulCommands = result.results.filter((r: any) => r.status === 'SUCCESS');
+  //     const failedCommands = result.results.filter((r: any) => r.status === 'ERROR');
       
-      let message = `Prueba completada en ${printerName.trim()}.\n\n`;
-      message += `✅ Comandos exitosos (${successfulCommands.length}):\n`;
-      successfulCommands.forEach((cmd: any) => {
-        message += `• ${cmd.command}\n`;
-      });
+  //     let message = `Prueba completada en ${printerName.trim()}.\n\n`;
+  //     message += `✅ Comandos exitosos (${successfulCommands.length}):\n`;
+  //     successfulCommands.forEach((cmd: any) => {
+  //       message += `• ${cmd.command}\n`;
+  //     });
       
-      if (failedCommands.length > 0) {
-        message += `\n❌ Comandos fallidos (${failedCommands.length}):\n`;
-        failedCommands.forEach((cmd: any) => {
-          message += `• ${cmd.command}\n`;
-        });
-      }
+  //     if (failedCommands.length > 0) {
+  //       message += `\n❌ Comandos fallidos (${failedCommands.length}):\n`;
+  //       failedCommands.forEach((cmd: any) => {
+  //         message += `• ${cmd.command}\n`;
+  //       });
+  //     }
 
-      message += '\n🔧 Los comandos exitosos se usarán automáticamente con tu impresora.';
+  //     message += '\n🔧 Los comandos exitosos se usarán automáticamente con tu impresora.';
 
-      this.notificationService.success('Prueba Completada', message);
+  //     this.notificationService.success('Prueba Completada', message);
       
-    } catch (error) {
-      console.error('❌ Error en prueba de comandos ESC/POS:', error);
-      this.notificationService.error('Error Prueba', `Error probando comandos ESC/POS en ${printerName.trim()}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
-  }
+  //   } catch (error) {
+  //     console.error('❌ Error en prueba de comandos ESC/POS:', error);
+  //     this.notificationService.error('Error Prueba', `Error probando comandos ESC/POS en ${printerName.trim()}: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+  //   }
+  // }
 
   // Funciones para manejar el diálogo de impresora
   onPrinterDialogConfirm(): void {

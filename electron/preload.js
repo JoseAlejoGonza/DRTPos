@@ -83,6 +83,14 @@ contextBridge.exposeInMainWorld('api', {
   getProfitByCategory: (from, to) => ipcRenderer.invoke('reports:getProfitByCategory', { startDate: from, endDate: to }),
   getDailyProfitSummary: (date) => ipcRenderer.invoke('reports:getDailyProfitSummary', date),
 
+  // Users & Authentication
+  login: (username, password) => ipcRenderer.invoke('auth:login', { username, password }),
+  getAllUsers: () => ipcRenderer.invoke('users:getAll'),
+  createUser: (userData) => ipcRenderer.invoke('users:create', userData),
+  updateUser: (userData) => ipcRenderer.invoke('users:update', userData),
+  deleteUser: (id) => ipcRenderer.invoke('users:delete', id),
+  changePassword: (userId, currentPassword, newPassword) => ipcRenderer.invoke('users:changePassword', { userId, currentPassword, newPassword }),
+
   // Configuración
   getConfig: () => ipcRenderer.invoke('config:getAll'),
   getCompanyConfig: () => ipcRenderer.invoke('config:getCompany'),

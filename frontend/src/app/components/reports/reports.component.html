@@ -30,24 +30,26 @@
 
   <!-- Tabs (auto-exec on select) -->
   <ul class="nav nav-tabs mb-3" role="tablist">
+    <!-- Resumen disponible para todos los usuarios -->
     <li class="nav-item" role="presentation">
       <a role="tab" class="nav-link" [class.active]="currentTab==='summary'" (click)="selectTab('summary')" [attr.aria-selected]="currentTab==='summary'">Resumen</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <!-- Pestañas avanzadas solo para administradores -->
+    <li class="nav-item" role="presentation" *ngIf="authService.isAdmin()">
       <a role="tab" class="nav-link" [class.active]="currentTab==='range'" (click)="selectTab('range')" [attr.aria-selected]="currentTab==='range'">Venta por rango</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <li class="nav-item" role="presentation" *ngIf="authService.isAdmin()">
       <a role="tab" class="nav-link" [class.active]="currentTab==='product'" (click)="selectTab('product')" [attr.aria-selected]="currentTab==='product'">Ventas por producto</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <li class="nav-item" role="presentation" *ngIf="authService.isAdmin()">
       <a role="tab" class="nav-link" [class.active]="currentTab==='category'" (click)="selectTab('category')" [attr.aria-selected]="currentTab==='category'">Ventas por categoría</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <li class="nav-item" role="presentation" *ngIf="authService.isAdmin()">
       <a role="tab" class="nav-link" [class.active]="currentTab==='tax'" (click)="selectTab('tax')" [attr.aria-selected]="currentTab==='tax'">Impuestos</a>
     </li>
-    <li class="nav-item" role="presentation">
+    <!-- <li class="nav-item" role="presentation" *ngIf="authService.isAdmin()">
       <a role="tab" class="nav-link" [class.active]="currentTab==='frequency'" (click)="selectTab('frequency')" [attr.aria-selected]="currentTab==='frequency'">Frecuencia</a>
-    </li>
+    </li> -->
     <li class="nav-item" role="presentation">
       <a role="tab" class="nav-link" [class.active]="currentTab==='profitProduct'" (click)="selectTab('profitProduct')" [attr.aria-selected]="currentTab==='profitProduct'">Ganancias por Producto</a>
     </li>
@@ -79,7 +81,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let r of result.rows">
-                <td *ngFor="let k of tableKeys">{{ r[k] }}</td>
+                <td *ngFor="let k of tableKeys">{{ formatTableValue(r[k], k) }}</td>
               </tr>
             </tbody>
           </table>
@@ -220,11 +222,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- fallback display -->
-      <div *ngIf="!isSummaryResult() && !isTaxResult() && !isFrequencyResult()">
-        <pre style="max-height:400px; overflow:auto; background:#f8f9fa; padding:10px;">{{ result | json }}</pre>
       </div>
     </div>
   </div>

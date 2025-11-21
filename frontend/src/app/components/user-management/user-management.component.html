@@ -1,0 +1,295 @@
+<div class="user-management-container">
+  <div class="header-section">
+    <h2>
+      <i class="fas fa-users me-2"></i>
+      Gestión de Usuarios
+    </h2>
+    <p class="text-muted">Administra los usuarios del sistema POS</p>
+  </div>
+
+  <!-- Mensajes -->
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="successMessage" class="alert alert-success">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ successMessage }}
+  </div>
+
+  <!-- Botón para crear usuario -->
+  <div class="mb-3" *ngIf="!showCreateForm && !showEditForm && !showChangePasswordForm">
+    <button class="btn btn-primary" (click)="showCreateUserForm()">
+      <i class="fas fa-plus me-2"></i>
+      Crear Nuevo Usuario
+    </button>
+  </div>
+
+  <!-- Lista de usuarios -->
+  <div class="users-table" *ngIf="!showCreateForm && !showEditForm && !showChangePasswordForm">
+    <div *ngIf="isLoading" class="text-center py-4">
+      <i class="fas fa-spinner fa-spin fs-3 text-primary"></i>
+      <p class="mt-2">Cargando usuarios...</p>
+    </div>
+
+    <div *ngIf="!isLoading" class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre Completo</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Último Acceso</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of users">
+            <td>
+              <strong>{{ user.username }}</strong>
+            </td>
+            <td>{{ user.full_name }}</td>
+            <td>
+              <span class="badge" 
+                    [class.bg-warning]="user.user_type === 'admin'"
+                    [class.bg-info]="user.user_type === 'general'">
+                {{ user.user_type === 'admin' ? 'Administrador' : 'General' }}
+              </span>
+            </td>
+            <td>
+              <span class="badge" 
+                    [class.bg-success]="user.is_active"
+                    [class.bg-secondary]="!user.is_active">
+                {{ user.is_active ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td>
+              {{ user.last_login ? (user.last_login | date:'short') : 'Nunca' }}
+            </td>
+            <td>
+              <div class="btn-group" role="group">
+                <button class="btn btn-sm btn-outline-primary" 
+                        (click)="showEditUserForm(user)">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" 
+                        (click)="showChangePasswordFormFor(user)">
+                  <i class="fas fa-key"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" 
+                        (click)="deleteUser(user)"
+                        [disabled]="user.username === 'admin'">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="!isLoading && users.length === 0" class="text-center py-4">
+      <i class="fas fa-users fs-3 text-muted"></i>
+      <p class="mt-2 text-muted">No hay usuarios registrados</p>
+    </div>
+  </div>
+
+  <!-- Formulario crear usuario -->
+  <div *ngIf="showCreateForm" class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0">Crear Nuevo Usuario</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="createUser()" #createForm="ngForm">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Usuario *</label>
+            <input type="text" 
+                   class="form-control" 
+                   [(ngModel)]="newUser.username" 
+                   name="username" 
+                   required
+                   placeholder="nombre.usuario">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre Completo *</label>
+            <input type="text" 
+                   class="form-control" 
+                   [(ngModel)]="newUser.full_name" 
+                   name="fullName" 
+                   required
+                   placeholder="Juan Pérez">
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Usuario</label>
+            <select class="form-select" [(ngModel)]="newUser.user_type" name="userType">
+              <option value="general">General</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado</label>
+            <select class="form-select" [(ngModel)]="newUser.is_active" name="isActive">
+              <option [value]="true">Activo</option>
+              <option [value]="false">Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Contraseña *</label>
+            <input type="password" 
+                   class="form-control" 
+                   [(ngModel)]="newUser.password" 
+                   name="password" 
+                   required
+                   minlength="6"
+                   placeholder="Mínimo 6 caracteres">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Confirmar Contraseña *</label>
+            <input type="password" 
+                   class="form-control" 
+                   [(ngModel)]="newUser.confirmPassword" 
+                   name="confirmPassword" 
+                   required
+                   placeholder="Repetir contraseña">
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success" [disabled]="!createForm.valid">
+            <i class="fas fa-save me-2"></i>
+            Crear Usuario
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="cancelForms()">
+            <i class="fas fa-times me-2"></i>
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Formulario editar usuario -->
+  <div *ngIf="showEditForm" class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0">Editar Usuario</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="updateUser()" #editForm="ngForm">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Usuario *</label>
+            <input type="text" 
+                   class="form-control" 
+                   [(ngModel)]="editingUser.username" 
+                   name="username" 
+                   required
+                   [disabled]="editingUser.username === 'admin'">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre Completo *</label>
+            <input type="text" 
+                   class="form-control" 
+                   [(ngModel)]="editingUser.full_name" 
+                   name="fullName" 
+                   required>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Usuario</label>
+            <select class="form-select" 
+                    [(ngModel)]="editingUser.user_type" 
+                    name="userType"
+                    [disabled]="editingUser.username === 'admin'">
+              <option value="general">General</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado</label>
+            <select class="form-select" 
+                    [(ngModel)]="editingUser.is_active" 
+                    name="isActive"
+                    [disabled]="editingUser.username === 'admin'">
+              <option [value]="true">Activo</option>
+              <option [value]="false">Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success" [disabled]="!editForm.valid">
+            <i class="fas fa-save me-2"></i>
+            Guardar Cambios
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="cancelForms()">
+            <i class="fas fa-times me-2"></i>
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Formulario cambiar contraseña -->
+  <div *ngIf="showChangePasswordForm" class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0">Cambiar Contraseña</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="changePassword()" #passwordForm="ngForm">
+        <div class="row">
+          <div class="col-md-12 mb-3">
+            <label class="form-label">Contraseña Actual *</label>
+            <input type="password" 
+                   class="form-control" 
+                   [(ngModel)]="changePasswordUser.currentPassword" 
+                   name="currentPassword" 
+                   required>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nueva Contraseña *</label>
+            <input type="password" 
+                   class="form-control" 
+                   [(ngModel)]="changePasswordUser.newPassword" 
+                   name="newPassword" 
+                   required
+                   minlength="6">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Confirmar Nueva Contraseña *</label>
+            <input type="password" 
+                   class="form-control" 
+                   [(ngModel)]="changePasswordUser.confirmPassword" 
+                   name="confirmPassword" 
+                   required>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-warning" [disabled]="!passwordForm.valid">
+            <i class="fas fa-key me-2"></i>
+            Cambiar Contraseña
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="cancelForms()">
+            <i class="fas fa-times me-2"></i>
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

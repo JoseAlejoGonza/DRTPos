@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ElectronService } from '../../services/electron.service';
 import { NotificationService } from '../../services/notification.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-reports',
@@ -12,8 +13,8 @@ import { NotificationService } from '../../services/notification.service';
   styleUrls: ['./reports.component.scss']
 })
 export class ReportsComponent {
-  from: string = new Date().toISOString().slice(0, 10);
-  to: string = new Date().toISOString().slice(0, 10);
+  from: string = '';
+  to: string = '';
   granularity: string = 'daily';
   loading = false;
   result: any = null;
@@ -23,9 +24,23 @@ export class ReportsComponent {
 
   @ViewChild('chartCanvas', { static: false }) chartCanvas!: ElementRef<HTMLCanvasElement>;
 
-  constructor(private electron: ElectronService, private notificationService: NotificationService) {}
+  constructor(
+    private electron: ElectronService, 
+    private notificationService: NotificationService,
+    public authService: AuthService
+  ) {}
 
   async ngOnInit() {
+    // Inicializar fechas usando zona horaria local
+    const today = this.getLocalDateString();
+    this.from = today;
+    this.to = today;
+    
+    // Configurar pestaña inicial según el tipo de usuario
+    if (this.authService.isGeneral()) {
+      this.currentTab = 'summary';
+    }
+    
     // Run the default tab on load
     await this.runCurrentReport();
   }
@@ -56,8 +71,8 @@ export class ReportsComponent {
     } else if (type === 'monthly') {
       fromD = new Date(now.getFullYear(), now.getMonth(), 1);
     }
-    this.from = fromD.toISOString().slice(0,10);
-    this.to = now.toISOString().slice(0,10);
+    this.from = this.getLocalDateString(fromD);
+    this.to = this.getLocalDateString(now);
     // auto-run after quick selection
     setTimeout(() => this.runCurrentReport(), 0);
   }
@@ -88,6 +103,45 @@ export class ReportsComponent {
   formatNumber(v: any) {
     const n = Number(v || 0);
     try { return new Intl.NumberFormat('es-CO').format(n); } catch (e) { return String(n); }
+  }
+
+  formatTableValue(value: any, key: string): string {
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+    
+    const numValue = Number(value);
+    
+    // Si es un número válido
+    if (!isNaN(numValue)) {
+      // Cantidades - Solo número sin signo pesos
+      if (key.toLowerCase().includes('quantity') || 
+          key.toLowerCase().includes('sold') ||
+          key.toLowerCase().includes('count')) {
+        return this.formatNumber(numValue);
+      }
+      // Porcentajes y márgenes - Con signo %
+      else if (key.toLowerCase().includes('percent') || 
+               key.toLowerCase().includes('margin')) {
+        return numValue.toFixed(2) + '%';
+      }
+      // Valores monetarios - Con formato de moneda
+      else if (key.toLowerCase().includes('total') || 
+          key.toLowerCase().includes('price') || 
+          key.toLowerCase().includes('sales') ||
+          key.toLowerCase().includes('revenue') ||
+          key.toLowerCase().includes('cost') ||
+          key.toLowerCase().includes('profit')) {
+        return this.formatCurrency(numValue);
+      }
+      // Otros números - máximo 2 decimales
+      else {
+        return numValue.toFixed(2);
+      }
+    }
+    
+    // Si no es número, devolver como string
+    return String(value);
   }
 
   async runSalesByRange() {
@@ -162,9 +216,42 @@ export class ReportsComponent {
       return;
     }
     const keys = Object.keys(rows[0]);
-    const header = keys.map(k => `<th>${k}</th>`).join('');
-    const body = rows.map(r => '<tr>' + keys.map(k => `<td>${(r[k] !== null && r[k] !== undefined) ? String(r[k]) : ''}</td>`).join('') + '</tr>').join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>table{width:100%; border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;text-align:left}h1{font-size:18px}</style></head><body><h1>${title}</h1><p>Periodo: ${this.from} - ${this.to}</p><table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+    // Usar los mismos nombres de columnas humanizados que se muestran en la interfaz
+    const header = keys.map(k => `<th>${this.humanizeHeader(k)}</th>`).join('');
+    const body = rows.map(r => '<tr>' + keys.map(k => {
+      let value = (r[k] !== null && r[k] !== undefined) ? String(r[k]) : '';
+      // Formatear valores monetarios y numéricos para mejor presentación
+      if (k.toLowerCase().includes('total') || k.toLowerCase().includes('price') || 
+          k.toLowerCase().includes('revenue') || k.toLowerCase().includes('cost') || 
+          k.toLowerCase().includes('profit')) {
+        const numValue = Number(value);
+        if (!isNaN(numValue)) {
+          value = this.formatCurrency(numValue);
+        }
+      } else if (k.toLowerCase().includes('percent') || k.toLowerCase().includes('margin')) {
+        const numValue = Number(value);
+        if (!isNaN(numValue)) {
+          value = numValue.toFixed(2) + '%';
+        }
+      } else if (k.toLowerCase().includes('quantity') || k.toLowerCase().includes('sold') || k.toLowerCase().includes('count')) {
+        const numValue = Number(value);
+        if (!isNaN(numValue)) {
+          value = this.formatNumber(numValue);
+        }
+      }
+      return `<td>${value}</td>`;
+    }).join('') + '</tr>').join('');
+    
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>
+      body{font-family:Arial,sans-serif;margin:20px;color:#333}
+      table{width:100%;border-collapse:collapse;margin-top:20px}
+      th{background-color:#3498db;color:white;padding:12px;text-align:left;font-weight:bold}
+      td{padding:10px;border-bottom:1px solid #bdc3c7;text-align:left}
+      tr:nth-child(even){background-color:#f8f9fa}
+      h1{color:#2c3e50;text-align:center;margin-bottom:5px}
+      .period{text-align:center;color:#7f8c8d;margin-bottom:20px}
+    </style></head><body><h1>${title}</h1><p class="period">Periodo: ${this.from} - ${this.to}</p><table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+    
     const res = await this.electron.exportReportPdf(html, defaultName || 'report.pdf');
     if (res && res.success) {
       this.notificationService.success('PDF Guardado', 'PDF guardado: ' + res.savedPath);
@@ -352,7 +439,7 @@ export class ReportsComponent {
    * Verifica si el filtro actual es para el día de hoy
    */
   isDailyToday(): boolean {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getLocalDateString();
     return this.from === today && this.to === today;
   }
 
@@ -363,7 +450,9 @@ export class ReportsComponent {
     try {
       console.log('🔐 Generando cierre de caja diario...');
       
-      const today = new Date().toISOString().slice(0, 10);
+      // Obtener fecha local correcta (sin problemas de zona horaria)
+      const today = this.getLocalDateString();
+      console.log('📅 Fecha para cierre diario:', today);
       const result = await this.electron.getDailyClosure(today);
       
       if (result && result.success) {
@@ -475,12 +564,7 @@ export class ReportsComponent {
     <div class="header">
         <h1>CIERRE DE CAJA DIARIO</h1>
         <h2>DRT POS System</h2>
-        <p><strong>Fecha:</strong> ${new Date(data.date).toLocaleDateString('es-CO', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}</p>
+        <p><strong>Fecha:</strong> ${this.formatDateForDisplay(data.date)}</p>
     </div>
 
     <div class="summary">
@@ -590,5 +674,32 @@ export class ReportsComponent {
 
   isProfitSummaryResult() {
     return this.result && this.result.summary && this.result.summary.total_profit !== undefined;
+  }
+
+  /**
+   * Obtiene la fecha actual en formato YYYY-MM-DD usando la zona horaria local
+   */
+  private getLocalDateString(date?: Date): string {
+    const d = date || new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Formatea una fecha en formato YYYY-MM-DD para mostrar con nombre del día
+   */
+  private formatDateForDisplay(dateString: string): string {
+    // Crear fecha local correctamente para evitar problemas de zona horaria
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month es 0-indexado en JS
+    
+    return date.toLocaleDateString('es-CO', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
   }
 }
