@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ElectronService } from '../../services/electron.service';
+import { BarcodeService } from '../../services/barcode.service';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -12,18 +13,29 @@ import { AddProductsComponent } from '../add-products/add-products.component';
   templateUrl: './products.component.html',
   styleUrl: './products.component.scss'
 })
-export class ProductsComponent {
+export class ProductsComponent implements OnInit {
   products: any[] = [];
   categories: any[] = [];
   formVisible: boolean = false;
   selectedProduct: any = null;
   titleModal: string = '';
 
-  constructor(private electronService: ElectronService) {}
+  constructor(
+    private electronService: ElectronService,
+    private barcodeService: BarcodeService
+  ) {}
 
   async ngOnInit() {
     await this.loadCategories();
     await this.loadProducts();
+    
+    // Suscribirse al evento de abrir modal de agregar producto
+    this.barcodeService.addProductModal$.subscribe(code => {
+      console.log('🔔 ProductsComponent recibió código para modal:', code);
+      if (code) {
+        this.addProductWithCode(code);
+      }
+    });
   }
 
   async loadCategories() {
@@ -60,5 +72,25 @@ export class ProductsComponent {
     this.formVisible = false;
     this.selectedProduct = null;
     this.loadProducts(); // Refresca la tabla con los datos actualizados
+  }
+
+  /**
+   * Abre el modal de agregar producto con un código específico pre-cargado
+   */
+  addProductWithCode(code: string) {
+    console.log('🚀 Abriendo modal con código:', code);
+    this.selectedProduct = {
+      image: '',
+      code: code,
+      name: '',
+      price: null,
+      cost_price: null,
+      stock: null,
+      color: '',
+      category_id: null
+    };
+    this.titleModal = 'Agregar producto';
+    this.formVisible = true;
+    console.log('🎯 Modal configurado - formVisible:', this.formVisible);
   }
 }

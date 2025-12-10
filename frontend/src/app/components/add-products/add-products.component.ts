@@ -109,9 +109,23 @@ export class AddProductsComponent implements OnInit {
 
   getImagePreview(): string | null {
     if (!this.product.image) return null;
+    
+    // Si es una URL web (http/https), usarla directamente
     if (this.isUrl(this.product.image)) return this.product.image;
+    
+    // Si ya tiene el protocolo file://, usarla directamente
     if (this.product.image.startsWith('file://')) return this.product.image;
-    return 'file://' + this.product.image;
+    
+    // Para rutas locales, convertir correctamente a file:// URL
+    // Reemplazar backslashes con forward slashes para Windows
+    const normalizedPath = this.product.image.replace(/\\/g, '/');
+    
+    // Si no empieza con /, agregarlo (para rutas absolutas)
+    if (!normalizedPath.startsWith('/')) {
+      return 'file:///' + normalizedPath;
+    }
+    
+    return 'file://' + normalizedPath;
   }
 
   close() {
@@ -119,14 +133,38 @@ export class AddProductsComponent implements OnInit {
     this.visible = false;
   }
   async openFilePicker() {
-    // El 'path' solo está disponible en Electron
-    const result = await this.electronService.openImageDialog();  
-    if (result && result.success && result.filePath) {
-      // 2. Si se selecciona un archivo, guarda la ruta real
-      this.product.image = result.filePath;
-      this.archivoSeleccionado = result.filePath;
-    } else {
-      console.log('No se seleccionó archivo o hubo error:', result);
+    try {
+      const result = await this.electronService.openImageDialog();  
+      console.log('🖼️ Resultado del selector de imagen:', result);
+      
+      // Manejar tanto el formato nuevo como el antiguo
+      let filePath: string | null = null;
+      let success = false;
+      
+      if (typeof result === 'string') {
+        // Formato antiguo: devuelve directamente la ruta
+        filePath = result;
+        success = true;
+        console.log('📁 Formato antiguo - Ruta recibida:', filePath);
+      } else if (result && result.success && result.filePath) {
+        // Formato nuevo: devuelve objeto con success y filePath
+        filePath = result.filePath;
+        success = result.success;
+        console.log('📁 Formato nuevo - Archivo seleccionado:', filePath);
+      }
+      
+      if (success && filePath) {
+        console.log('✅ Procesando archivo:', filePath);
+        this.product.image = filePath;
+        this.archivoSeleccionado = filePath;
+        this.notificationService.success('Imagen seleccionada', 'Imagen cargada correctamente');
+      } else {
+        console.log('❌ No se seleccionó archivo o hubo error:', result);
+        this.notificationService.warning('Selección de imagen', 'No se pudo seleccionar la imagen');
+      }
+    } catch (error) {
+      console.error('❌ Error al abrir selector de archivos:', error);
+      this.notificationService.error('Error', 'Error al abrir el selector de archivos');
     }
   }
 

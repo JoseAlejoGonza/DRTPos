@@ -36,6 +36,19 @@ export class UserManagementComponent implements OnInit {
   
   errorMessage: string = '';
   successMessage: string = '';
+  
+  // Propiedades para modales
+  showDeleteModal: boolean = false;
+  userToDelete: User | null = null;
+  showPasswordModal: boolean = false;
+  userToChangePassword: User | null = null;
+
+  // Propiedades para mostrar/ocultar contraseñas
+  showNewPassword: boolean = false;
+  showConfirmNewPassword: boolean = false;
+  showCurrentPassword: boolean = false;
+  showNewPasswordModal: boolean = false;
+  showConfirmPasswordModal: boolean = false;
 
   constructor(private authService: AuthService) {}
 
@@ -84,15 +97,7 @@ export class UserManagementComponent implements OnInit {
   }
 
   showChangePasswordFormFor(user: User) {
-    this.changePasswordUser = {
-      userId: user.id,
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    };
-    this.showChangePasswordForm = true;
-    this.showCreateForm = false;
-    this.showEditForm = false;
+    this.showChangePasswordModal(user);
     this.clearMessages();
   }
 
@@ -196,7 +201,7 @@ export class UserManagementComponent implements OnInit {
 
       if (result.success) {
         this.successMessage = 'Contraseña cambiada exitosamente';
-        this.cancelForms();
+        this.closePasswordModal();
       } else {
         this.errorMessage = result.error || 'Error al cambiar contraseña';
       }
@@ -205,26 +210,41 @@ export class UserManagementComponent implements OnInit {
     }
   }
 
-  async deleteUser(user: User) {
+  // Mostrar modal de confirmación para eliminar
+  confirmDeleteUser(user: User) {
     if (user.username === 'admin') {
       this.errorMessage = 'No se puede eliminar el usuario administrador principal';
       return;
     }
+    
+    this.userToDelete = user;
+    this.showDeleteModal = true;
+  }
+  
+  // Eliminar usuario después de confirmación
+  async deleteUser() {
+    if (!this.userToDelete) return;
+    
+    try {
+      const result = await this.authService.deleteUser(this.userToDelete.id);
 
-    if (confirm(`¿Está seguro de eliminar el usuario "${user.full_name}"?`)) {
-      try {
-        const result = await this.authService.deleteUser(user.id);
-
-        if (result.success) {
-          this.successMessage = 'Usuario eliminado exitosamente';
-          await this.loadUsers();
-        } else {
-          this.errorMessage = result.error || 'Error al eliminar usuario';
-        }
-      } catch (error: any) {
-        this.errorMessage = error.message || 'Error de conexión';
+      if (result.success) {
+        this.successMessage = 'Usuario eliminado exitosamente';
+        await this.loadUsers();
+      } else {
+        this.errorMessage = result.error || 'Error al eliminar usuario';
       }
+    } catch (error: any) {
+      this.errorMessage = error.message || 'Error de conexión';
+    } finally {
+      this.closeDeleteModal();
     }
+  }
+  
+  // Cerrar modal de eliminación
+  closeDeleteModal() {
+    this.showDeleteModal = false;
+    this.userToDelete = null;
   }
 
   private resetNewUser() {
@@ -238,8 +258,53 @@ export class UserManagementComponent implements OnInit {
     };
   }
 
+  // Mostrar modal para cambiar contraseña
+  showChangePasswordModal(user: User) {
+    this.userToChangePassword = user;
+    this.changePasswordUser = {
+      userId: user.id,
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    };
+    this.showPasswordModal = true;
+  }
+  
+  // Cerrar modal de cambio de contraseña
+  closePasswordModal() {
+    this.showPasswordModal = false;
+    this.userToChangePassword = null;
+    this.changePasswordUser = {
+      userId: 0,
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    };
+  }
+
   private clearMessages() {
     this.errorMessage = '';
     this.successMessage = '';
+  }
+
+  // Métodos para alternar visibilidad de contraseñas
+  toggleNewPasswordVisibility() {
+    this.showNewPassword = !this.showNewPassword;
+  }
+
+  toggleConfirmNewPasswordVisibility() {
+    this.showConfirmNewPassword = !this.showConfirmNewPassword;
+  }
+
+  toggleCurrentPasswordVisibility() {
+    this.showCurrentPassword = !this.showCurrentPassword;
+  }
+
+  toggleNewPasswordModalVisibility() {
+    this.showNewPasswordModal = !this.showNewPasswordModal;
+  }
+
+  toggleConfirmPasswordModalVisibility() {
+    this.showConfirmPasswordModal = !this.showConfirmPasswordModal;
   }
 }

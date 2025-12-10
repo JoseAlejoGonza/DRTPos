@@ -50,11 +50,19 @@ export class ProductNotFoundModalComponent implements OnInit, OnDestroy {
    * Navega a la página de agregar productos con el código pre-llenado
    */
   goToAddProduct(): void {
+    console.log('🔥 Ejecutando goToAddProduct con código:', this.scannedCode);
+    // Guardar el código antes de cerrar el modal
+    const codeToSend = this.scannedCode;
     this.closeModal();
-    // Navegar a agregar productos y pasar el código como query parameter
-    this.router.navigate(['/add-products'], { 
-      queryParams: { code: this.scannedCode } 
+    // Navegar primero a inventario/productos
+    this.router.navigate(['/products']).then(() => {
+      // Después de la navegación, enviar el evento con un pequeño delay
+      setTimeout(() => {
+        console.log('⏱️ Enviando evento después de navegación con código:', codeToSend);
+        this.barcodeService.openAddProductModal(codeToSend);
+      }, 100);
     });
+    console.log('🏃 Navegando a /products');
   }
 
   /**

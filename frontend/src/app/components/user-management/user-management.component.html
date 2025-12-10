@@ -79,7 +79,7 @@
                   <i class="fas fa-key"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-danger" 
-                        (click)="deleteUser(user)"
+                        (click)="confirmDeleteUser(user)"
                         [disabled]="user.username === 'admin'">
                   <i class="fas fa-trash"></i>
                 </button>
@@ -144,22 +144,38 @@
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Contraseña *</label>
-            <input type="password" 
-                   class="form-control" 
-                   [(ngModel)]="newUser.password" 
-                   name="password" 
-                   required
-                   minlength="6"
-                   placeholder="Mínimo 6 caracteres">
+            <div class="password-input-container">
+              <input [type]="showNewPassword ? 'text' : 'password'" 
+                     class="form-control password-input" 
+                     [(ngModel)]="newUser.password" 
+                     name="password" 
+                     required
+                     minlength="6"
+                     placeholder="Mínimo 6 caracteres">
+              <button type="button" 
+                      class="password-toggle-btn"
+                      (click)="toggleNewPasswordVisibility()"
+                      tabindex="-1">
+                <i [class]="showNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Confirmar Contraseña *</label>
-            <input type="password" 
-                   class="form-control" 
-                   [(ngModel)]="newUser.confirmPassword" 
-                   name="confirmPassword" 
-                   required
-                   placeholder="Repetir contraseña">
+            <div class="password-input-container">
+              <input [type]="showConfirmNewPassword ? 'text' : 'password'" 
+                     class="form-control password-input" 
+                     [(ngModel)]="newUser.confirmPassword" 
+                     name="confirmPassword" 
+                     required
+                     placeholder="Repetir contraseña">
+              <button type="button" 
+                      class="password-toggle-btn"
+                      (click)="toggleConfirmNewPasswordVisibility()"
+                      tabindex="-1">
+                <i [class]="showConfirmNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -251,31 +267,55 @@
         <div class="row">
           <div class="col-md-12 mb-3">
             <label class="form-label">Contraseña Actual *</label>
-            <input type="password" 
-                   class="form-control" 
-                   [(ngModel)]="changePasswordUser.currentPassword" 
-                   name="currentPassword" 
-                   required>
+            <div class="password-input-container">
+              <input [type]="showCurrentPassword ? 'text' : 'password'" 
+                     class="form-control password-input" 
+                     [(ngModel)]="changePasswordUser.currentPassword" 
+                     name="currentPassword" 
+                     required>
+              <button type="button" 
+                      class="password-toggle-btn"
+                      (click)="toggleCurrentPasswordVisibility()"
+                      tabindex="-1">
+                <i [class]="showCurrentPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
           </div>
         </div>
         
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Nueva Contraseña *</label>
-            <input type="password" 
-                   class="form-control" 
-                   [(ngModel)]="changePasswordUser.newPassword" 
-                   name="newPassword" 
-                   required
-                   minlength="6">
+            <div class="password-input-container">
+              <input [type]="showNewPassword ? 'text' : 'password'" 
+                     class="form-control password-input" 
+                     [(ngModel)]="changePasswordUser.newPassword" 
+                     name="newPassword" 
+                     required
+                     minlength="6">
+              <button type="button" 
+                      class="password-toggle-btn"
+                      (click)="toggleNewPasswordVisibility()"
+                      tabindex="-1">
+                <i [class]="showNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Confirmar Nueva Contraseña *</label>
-            <input type="password" 
-                   class="form-control" 
-                   [(ngModel)]="changePasswordUser.confirmPassword" 
-                   name="confirmPassword" 
-                   required>
+            <div class="password-input-container">
+              <input [type]="showConfirmNewPassword ? 'text' : 'password'" 
+                     class="form-control password-input" 
+                     [(ngModel)]="changePasswordUser.confirmPassword" 
+                     name="confirmPassword" 
+                     required>
+              <button type="button" 
+                      class="password-toggle-btn"
+                      (click)="toggleConfirmNewPasswordVisibility()"
+                      tabindex="-1">
+                <i [class]="showConfirmNewPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -292,4 +332,118 @@
       </form>
     </div>
   </div>
+
+  <!-- Modal de confirmación para eliminar usuario -->
+  <div class="modal fade" [class.show]="showDeleteModal" [style.display]="showDeleteModal ? 'block' : 'none'" *ngIf="showDeleteModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+            Confirmar Eliminación
+          </h5>
+          <button type="button" class="btn-close" (click)="closeDeleteModal()"></button>
+        </div>
+        <div class="modal-body">
+          <p>¿Está seguro de eliminar el usuario <strong>"{{ userToDelete?.full_name }}"</strong>?</p>
+          <p class="text-muted mb-0">Esta acción no se puede deshacer.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">
+            <i class="fas fa-times me-2"></i>
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-danger" (click)="deleteUser()">
+            <i class="fas fa-trash me-2"></i>
+            Eliminar Usuario
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para cambiar contraseña -->
+  <div class="modal fade" [class.show]="showPasswordModal" [style.display]="showPasswordModal ? 'block' : 'none'" *ngIf="showPasswordModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-key text-warning me-2"></i>
+            Cambiar Contraseña
+          </h5>
+          <button type="button" class="btn-close" (click)="closePasswordModal()"></button>
+        </div>
+        <form (ngSubmit)="changePassword()" #passwordForm="ngForm">
+          <div class="modal-body">
+            <p class="mb-3">Cambiando contraseña para: <strong>{{ userToChangePassword?.full_name }}</strong></p>
+            
+            <div class="mb-3">
+              <label class="form-label">Contraseña Actual *</label>
+              <div class="password-input-container">
+                <input [type]="showCurrentPassword ? 'text' : 'password'" 
+                       class="form-control password-input" 
+                       [(ngModel)]="changePasswordUser.currentPassword" 
+                       name="currentPassword" 
+                       required>
+                <button type="button" 
+                        class="password-toggle-btn"
+                        (click)="toggleCurrentPasswordVisibility()"
+                        tabindex="-1">
+                  <i [class]="showCurrentPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Nueva Contraseña *</label>
+              <div class="password-input-container">
+                <input [type]="showNewPasswordModal ? 'text' : 'password'" 
+                       class="form-control password-input" 
+                       [(ngModel)]="changePasswordUser.newPassword" 
+                       name="newPassword" 
+                       required
+                       minlength="6">
+                <button type="button" 
+                        class="password-toggle-btn"
+                        (click)="toggleNewPasswordModalVisibility()"
+                        tabindex="-1">
+                  <i [class]="showNewPasswordModal ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Confirmar Nueva Contraseña *</label>
+              <div class="password-input-container">
+                <input [type]="showConfirmPasswordModal ? 'text' : 'password'" 
+                       class="form-control password-input" 
+                       [(ngModel)]="changePasswordUser.confirmPassword" 
+                       name="confirmPassword" 
+                       required>
+                <button type="button" 
+                        class="password-toggle-btn"
+                        (click)="toggleConfirmPasswordModalVisibility()"
+                        tabindex="-1">
+                  <i [class]="showConfirmPasswordModal ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="closePasswordModal()">
+              <i class="fas fa-times me-2"></i>
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-warning" [disabled]="!passwordForm.valid">
+              <i class="fas fa-key me-2"></i>
+              Cambiar Contraseña
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backdrop para modales -->
+  <div class="modal-backdrop fade show" *ngIf="showDeleteModal || showPasswordModal"></div>
 </div>

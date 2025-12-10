@@ -121,5 +121,8 @@ contextBridge.exposeInMainWorld('api', {
   // Sistema - Fix para inputs bloqueados
   fixInputs: () => ipcRenderer.invoke('system:fixInputs'),
   forceReload: () => ipcRenderer.invoke('system:forceReload'),
-  resetAngular: () => ipcRenderer.invoke('system:resetAngular')
+  resetAngular: () => ipcRenderer.invoke('system:resetAngular'),
+  
+  // Base de datos
+  getDbPath: () => ipcRenderer.invoke('db:getPath')
 });

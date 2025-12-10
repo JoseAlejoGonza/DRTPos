@@ -1,6 +1,6 @@
 import { Injectable, NgZone } from '@angular/core';
 import { Router } from '@angular/router';
-import { BehaviorSubject, debounceTime, filter } from 'rxjs';
+import { BehaviorSubject, Subject, debounceTime, filter } from 'rxjs';
 import { ElectronService } from './electron.service';
 import { CartService } from './cart.service';
 
@@ -298,5 +298,19 @@ export class BarcodeService {
    */
   public isInShop(): boolean {
     return this.isInShopSection;
+  }
+
+  /**
+   * Subject para comunicar que se debe abrir el modal de agregar producto
+   */
+  private addProductModalSubject = new Subject<string>();
+  public addProductModal$ = this.addProductModalSubject.asObservable();
+
+  /**
+   * Solicita abrir el modal de agregar producto con un código específico
+   */
+  openAddProductModal(code: string): void {
+    console.log('📤 BarcodeService enviando código para modal:', code);
+    this.addProductModalSubject.next(code);
   }
 }

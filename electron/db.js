@@ -269,6 +269,8 @@ function updateProductStock(productId, quantity) {
 
 // Función para obtener reporte de ganancias por producto
 function getProfitByProduct(startDate, endDate) {
+  const fromDate = startDate.slice(0, 10);
+  const toDate = endDate.slice(0, 10);
   return db.prepare(`
     SELECT 
       p.name as product_name,
@@ -282,14 +284,16 @@ function getProfitByProduct(startDate, endDate) {
     FROM detail_sales ds
     JOIN products p ON ds.id_product = p.id
     JOIN sales s ON ds.id_sale = s.id
-    WHERE s.date_sale BETWEEN ? AND ?
+    WHERE date(substr(s.date_sale, 1, 10)) BETWEEN date(?) AND date(?)
     GROUP BY p.id, p.name, p.price, p.cost_price
     ORDER BY total_profit DESC
-  `).all(startDate, endDate);
+  `).all(fromDate, toDate);
 }
 
 // Función para obtener reporte de ganancias por categoría
 function getProfitByCategory(startDate, endDate) {
+  const fromDate = startDate.slice(0, 10);
+  const toDate = endDate.slice(0, 10);
   return db.prepare(`
     SELECT 
       c.name as category_name,
@@ -302,10 +306,10 @@ function getProfitByCategory(startDate, endDate) {
     JOIN products p ON ds.id_product = p.id
     JOIN categories c ON p.category_id = c.id
     JOIN sales s ON ds.id_sale = s.id
-    WHERE s.date_sale BETWEEN ? AND ?
+    WHERE date(substr(s.date_sale, 1, 10)) BETWEEN date(?) AND date(?)
     GROUP BY c.id, c.name
     ORDER BY total_profit DESC
-  `).all(startDate, endDate);
+  `).all(fromDate, toDate);
 }
 
 // Función para obtener resumen de ganancias del día
@@ -401,15 +405,25 @@ function updateUser(userData) {
 }
 
 function deleteUser(id) {
-  // No permitir eliminar si es el único admin
-  const adminCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE user_type = "admin" AND is_active = 1').get();
-  const userToDelete = db.prepare('SELECT user_type FROM users WHERE id = ?').get(id);
+  // No permitir eliminar si es el único admin activo
+  const adminCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE user_type = ? AND is_active = 1 AND id != ?').get('admin', id);
+  const userToDelete = db.prepare('SELECT user_type, username FROM users WHERE id = ?').get(id);
   
-  if (userToDelete && userToDelete.user_type === 'admin' && adminCount.count <= 1) {
-    throw new Error('No se puede eliminar el único usuario administrador');
+  if (!userToDelete) {
+    throw new Error('Usuario no encontrado');
   }
   
-  return db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(id);
+  if (userToDelete.user_type === 'admin' && adminCount.count === 0) {
+    throw new Error('No se puede eliminar el último usuario administrador activo');
+  }
+  
+  // No permitir eliminar el usuario admin principal
+  if (userToDelete.username === 'admin') {
+    throw new Error('No se puede eliminar el usuario administrador principal');
+  }
+  
+  // Eliminar permanentemente el usuario
+  return db.prepare('DELETE FROM users WHERE id = ?').run(id);
 }
 
 function changePassword(userId, currentPassword, newPassword) {
@@ -488,6 +502,11 @@ function updateProduct(product) {
   return result;
 }
 
+// Función para obtener la ruta de la base de datos
+function getDbPath() {
+  return dbPath;
+}
+
 module.exports = {
   addProduct,
   getProducts,
@@ -525,5 +544,6 @@ module.exports = {
   updateUser,
   deleteUser,
   changePassword,
+  getDbPath,
   db
 };

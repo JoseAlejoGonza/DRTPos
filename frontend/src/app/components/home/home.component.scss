@@ -60,7 +60,7 @@
 
 // Asegurar que el menú use toda la altura disponible
 .menu-scroll-area {
-  max-height: calc(100vh - 80px); // Dejar espacio para el header
+  max-height: calc(100vh - 140px); // Espacio para header fijo (60px) + título DRT POS
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
 }

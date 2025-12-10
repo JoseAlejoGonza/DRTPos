@@ -31,10 +31,23 @@ export class ReportsComponent {
   ) {}
 
   async ngOnInit() {
+    // Obtener y mostrar la ruta de la base de datos
+    try {
+      const response = await this.electron.getDbPath();
+      if (response && response.success) {
+        console.log('📁 Ruta de la base de datos:', response.path);
+      } else {
+        console.error('Error obteniendo ruta de BD:', response?.error);
+      }
+    } catch (error) {
+      console.error('Error obteniendo ruta de BD:', error);
+    }
+    
     // Inicializar fechas usando zona horaria local
     const today = this.getLocalDateString();
     this.from = today;
     this.to = today;
+    console.log('📅 Fechas inicializadas:', { from: this.from, to: this.to, today });
     
     // Configurar pestaña inicial según el tipo de usuario
     if (this.authService.isGeneral()) {
@@ -81,9 +94,16 @@ export class ReportsComponent {
     this.loading = true;
     this.result = null;
     try {
-      const res = await this.electron.getReportSalesSummary(this.from + 'T00:00:00', this.to + 'T23:59:59');
+      console.log('🔍 Ejecutando runSalesSummary con:', { from: this.from, to: this.to });
+      const fromDateTime = this.from + 'T00:00:00';
+      const toDateTime = this.to + 'T23:59:59';
+      console.log('📅 Rango de fechas completo:', { fromDateTime, toDateTime });
+      
+      const res = await this.electron.getReportSalesSummary(fromDateTime, toDateTime);
+      console.log('📊 Resultado de salesSummary:', res);
       this.result = res;
     } catch (e: any) {
+      console.error('❌ Error en runSalesSummary:', e);
       this.result = { success: false, error: e.message || e };
     } finally { this.loading = false; }
   }
@@ -329,8 +349,8 @@ export class ReportsComponent {
         this.tableKeys = ['categoryName', 'quantitySold', 'totalSales'];
         this.tableHeaders = ['Categoría', 'Cantidad', 'Total'];
       } else if (kind === 'range') {
-        this.tableKeys = ['period', 'count_sales', 'total'];
-        this.tableHeaders = ['Periodo', 'Transacciones', 'Total'];
+        this.tableKeys = ['period', 'count_sales', 'total', 'original_total', 'total_discount'];
+        this.tableHeaders = ['Periodo', 'Transacciones', 'Total', 'Total Original', 'Descuento Total'];
       } else if (kind === 'profitProduct') {
         this.tableKeys = ['product_name', 'total_sold', 'sale_price', 'cost_price', 'total_revenue', 'total_cost', 'total_profit', 'profit_margin_percent'];
         this.tableHeaders = ['Producto', 'Vendidos', 'Precio Venta', 'Costo', 'Ingresos', 'Costos', 'Ganancia', 'Margen %'];
@@ -346,6 +366,7 @@ export class ReportsComponent {
     }
     const sample = rows[0];
     this.tableKeys = Object.keys(sample);
+      console.log(this.tableKeys, 'estos son los headers', kind)
     this.tableHeaders = this.tableKeys.map(k => this.humanizeHeader(k));
     setTimeout(() => this.drawChart(kind), 50);
   }
@@ -605,29 +626,29 @@ export class ReportsComponent {
     <table class="products-table">
         <thead>
             <tr>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Cantidad</th>
-                <th>Precio Unit.</th>
-                <th>Costo Unit.</th>
-                <th>Ingresos</th>
-                <th>Costos</th>
-                <th>Ganancia</th>
-                <th>Margen %</th>
-                <th>Stock</th>
+                <th style="text-align: center;">Producto</th>
+                <th style="text-align: center;">Categoría</th>
+                <th style="text-align: center;">Cantidad</th>
+                <th style="text-align: center;">Precio Unit.</th>
+                <th style="text-align: center;">Costo Unit.</th>
+                <th style="text-align: center;">Ingresos</th>
+                <th style="text-align: center;">Costos</th>
+                <th style="text-align: center;">Ganancia</th>
+                <th style="text-align: center;">Margen %</th>
+                <th style="text-align: center;">Stock</th>
             </tr>
         </thead>
         <tbody>
             ${data.products.map((product: any) => `
             <tr>
-                <td>${product.productName}</td>
-                <td>${product.categoryName || 'Sin categoría'}</td>
+                <td style="text-align: center;">${product.productName}</td>
+                <td style="text-align: center;">${product.categoryName || 'Sin categoría'}</td>
                 <td style="text-align: center;">${product.quantitySold}</td>
-                <td class="currency">${this.formatCurrency(product.unitPrice || 0)}</td>
-                <td class="currency">${this.formatCurrency(product.unitCost || 0)}</td>
-                <td class="currency">${this.formatCurrency(product.realAmountPaid || 0)}</td>
-                <td class="currency">${this.formatCurrency(product.totalCost || 0)}</td>
-                <td class="currency" style="color: #27ae60;">${this.formatCurrency(product.totalProfit || 0)}</td>
+                <td style="text-align: center;" class="currency">${this.formatCurrency(product.unitPrice || 0)}</td>
+                <td style="text-align: center;" class="currency">${this.formatCurrency(product.unitCost || 0)}</td>
+                <td style="text-align: center;" class="currency">${this.formatCurrency(product.realAmountPaid || 0)}</td>
+                <td style="text-align: center;" class="currency">${this.formatCurrency(product.totalCost || 0)}</td>
+                <td style="text-align: center;" class="currency" style="color: #27ae60;">${this.formatCurrency(product.totalProfit || 0)}</td>
                 <td style="text-align: center; color: #2980b9;">${(product.profitMarginPercent || 0).toFixed(1)}%</td>
                 <td style="text-align: center;">${product.currentStock}</td>
             </tr>

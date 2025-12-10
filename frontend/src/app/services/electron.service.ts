@@ -114,4 +114,7 @@ export class ElectronService {
   async fixInputs() { return (window as any).api.fixInputs(); }
   async forceReload() { return (window as any).api.forceReload(); }
   async resetAngular() { return (window as any).api.resetAngular(); }
+  
+  // Base de datos
+  async getDbPath() { return (window as any).api.getDbPath(); }
 }

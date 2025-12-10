@@ -46,6 +46,49 @@
   }
 }
 
+// Estilos para modales
+.modal {
+  z-index: 1050;
+  
+  &.show {
+    display: block !important;
+  }
+  
+  .modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+  
+  .modal-header {
+    border-bottom: 1px solid #e9ecef;
+    padding: 1.25rem;
+    
+    .modal-title {
+      font-weight: 600;
+      color: #333;
+    }
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .modal-footer {
+    border-top: 1px solid #e9ecef;
+    padding: 1rem 1.25rem;
+    
+    .btn {
+      min-width: 120px;
+    }
+  }
+}
+
+.modal-backdrop {
+  z-index: 1040;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
 .card {
   border: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
@@ -143,6 +186,46 @@
   &.alert-success {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
+  }
+}
+
+// Estilos para campos de contraseña con botón mostrar/ocultar
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .password-input {
+    padding-right: 3rem;
+  }
+
+  .password-toggle-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-size: 1rem;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.3s ease;
+    z-index: 10;
+
+    &:hover:not(:disabled) {
+      color: #667eea;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    &:focus {
+      outline: none;
+    }
   }
 }
 

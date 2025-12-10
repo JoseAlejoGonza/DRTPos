@@ -16,6 +16,7 @@ export class LoginComponent implements OnInit {
   password: string = '';
   isLoading: boolean = false;
   errorMessage: string = '';
+  showPassword: boolean = false;
 
   constructor(
     private authService: AuthService,
@@ -54,9 +55,14 @@ export class LoginComponent implements OnInit {
     }
   }
 
-  onEnterPressed(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
+  onEnterPressed() {
+    // Solo ejecutar onSubmit si hay usuario y contraseña, y no está cargando
+    if (this.username.trim() && this.password.trim() && !this.isLoading) {
       this.onSubmit();
     }
+  }
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
   }
 }

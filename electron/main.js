@@ -344,17 +344,30 @@ ipcMain.handle('users:changePassword', (e, {userId, currentPassword, newPassword
   }
 });
 ipcMain.handle('open-image-dialog', async (event) => {
-    const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
-        properties: ['openFile'],
-        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif'] }]
-    });
+    try {
+        const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+            properties: ['openFile'],
+            filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] }]
+        });
 
-    if (result.canceled || result.filePaths.length === 0) {
-        return null; // El usuario canceló
+        if (result.canceled || result.filePaths.length === 0) {
+            return { success: false, message: 'Usuario canceló la selección' };
+        }
+        
+        // Devolver un objeto con la estructura esperada
+        return { 
+            success: true, 
+            filePath: result.filePaths[0],
+            message: 'Imagen seleccionada exitosamente' 
+        };
+    } catch (error) {
+        console.error('Error en open-image-dialog:', error);
+        return { 
+            success: false, 
+            message: 'Error al abrir el diálogo de selección',
+            error: error.message 
+        };
     }
-    
-    // Devuelve la ruta real (siempre la primera, ya que solo permitimos un archivo)
-    return result.filePaths[0]; 
 });
 
 // PROCESAMIENTO COMPLETO DE PAGO
@@ -362,9 +375,12 @@ ipcMain.handle('payment:process', async (event, paymentData) => {
   try {
     const { saleData, clientData, paymentMethod, requiresInvoice, additionalData } = paymentData;
     
-    // 1. Crear la venta
+    // 1. Crear la venta con fecha local
+    const now = new Date();
+    const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, -1);
+    
     const saleResult = await db.addSale({
-      date_sale: new Date().toISOString(),
+      date_sale: localDate,
       total_sale: saleData.total, // Total con descuento
       original_total: saleData.originalTotal || saleData.total,
       discount: saleData.discount || 0,
@@ -512,9 +528,17 @@ ipcMain.handle('invoice:generateElectronic', async (event, data) => {
 // REPORTS - consulta de datos para reportes
 ipcMain.handle('reports:salesSummary', (event, { from, to }) => {
   try {
+    console.log('📊 reports:salesSummary - Parámetros recibidos:', { from, to });
+    
     const ivaRate = (invoicingConfig && invoicingConfig.ivaRate) ? invoicingConfig.ivaRate : 0.19;
-    const stmt = db.db.prepare('SELECT total_sale, original_total, discount, date_sale FROM sales WHERE date_sale BETWEEN ? AND ?');
-    const rows = stmt.all(from, to);
+    
+    // Primero, ver todas las ventas en la BD
+    const allSales = db.db.prepare('SELECT id, date_sale, total_sale FROM sales ORDER BY date_sale DESC LIMIT 10').all();
+    console.log('📊 Últimas 10 ventas en BD:', allSales);
+    
+    // Extraer solo la fecha (YYYY-MM-DD) de date_sale para comparar correctamente
+    const stmt = db.db.prepare(`SELECT total_sale, original_total, discount, date_sale FROM sales WHERE date(substr(date_sale, 1, 10)) BETWEEN date(?) AND date(?)`);
+    const rows = stmt.all(from.slice(0, 10), to.slice(0, 10));
     
     console.log('📊 Datos de salesSummary:', { from, to, rowCount: rows.length, sampleRow: rows[0] });
     
@@ -541,19 +565,23 @@ ipcMain.handle('reports:salesSummary', (event, { from, to }) => {
 
 ipcMain.handle('reports:salesByRange', (event, { from, to, granularity }) => {
   try {
+    // Extraer solo YYYY-MM-DD de las fechas
+    const fromDate = from.slice(0, 10);
+    const toDate = to.slice(0, 10);
+    
     // granularity: daily | weekly | quincenal | monthly | yearly
-    let groupExpr = "strftime('%Y-%m-%d', date_sale)";
-    if (granularity === 'monthly') groupExpr = "strftime('%Y-%m', date_sale)";
-    if (granularity === 'yearly') groupExpr = "strftime('%Y', date_sale)";
-    if (granularity === 'weekly') groupExpr = "strftime('%Y-%W', date_sale)";
+    let groupExpr = "strftime('%Y-%m-%d', substr(date_sale, 1, 10))";
+    if (granularity === 'monthly') groupExpr = "strftime('%Y-%m', substr(date_sale, 1, 10))";
+    if (granularity === 'yearly') groupExpr = "strftime('%Y', substr(date_sale, 1, 10))";
+    if (granularity === 'weekly') groupExpr = "strftime('%Y-%W', substr(date_sale, 1, 10))";
     if (granularity === 'quincenal') {
       // custom: year-month and half (1 or 2)
-      const stmt = db.db.prepare(`SELECT (strftime('%Y-%m', date_sale) || '-' || (CASE WHEN cast(strftime('%d', date_sale) as integer) <= 15 THEN '1' ELSE '2' END)) as period, COUNT(*) as count_sales, SUM(total_sale) as total FROM sales WHERE date_sale BETWEEN ? AND ? GROUP BY period ORDER BY period`);
-      return { success: true, rows: stmt.all(from, to) };
+      const stmt = db.db.prepare(`SELECT (strftime('%Y-%m', substr(date_sale, 1, 10)) || '-' || (CASE WHEN cast(strftime('%d', substr(date_sale, 1, 10)) as integer) <= 15 THEN '1' ELSE '2' END)) as period, COUNT(*) as count_sales, SUM(total_sale) as total FROM sales WHERE date(substr(date_sale, 1, 10)) BETWEEN date(?) AND date(?) GROUP BY period ORDER BY period`);
+      return { success: true, rows: stmt.all(fromDate, toDate) };
     }
 
-    const stmt = db.db.prepare(`SELECT ${groupExpr} as period, COUNT(*) as count_sales, SUM(COALESCE(total_sale, 0)) as total, SUM(COALESCE(original_total, total_sale, 0)) as original_total, SUM(COALESCE(discount, 0)) as total_discount FROM sales WHERE date_sale BETWEEN ? AND ? GROUP BY period ORDER BY period`);
-    const rows = stmt.all(from, to);
+    const stmt = db.db.prepare(`SELECT ${groupExpr} as period, COUNT(*) as count_sales, SUM(COALESCE(total_sale, 0)) as total, SUM(COALESCE(original_total, total_sale, 0)) as original_total, SUM(COALESCE(discount, 0)) as total_discount FROM sales WHERE date(substr(date_sale, 1, 10)) BETWEEN date(?) AND date(?) GROUP BY period ORDER BY period`);
+    const rows = stmt.all(fromDate, toDate);
     console.log('📊 salesByRange rows:', rows.slice(0, 3));
     return { success: true, rows };
   } catch (error) {
@@ -564,6 +592,10 @@ ipcMain.handle('reports:salesByRange', (event, { from, to, granularity }) => {
 
 ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
   try {
+    // Extraer solo YYYY-MM-DD de las fechas
+    const fromDate = from.slice(0, 10);
+    const toDate = to.slice(0, 10);
+    
     // make join robust: cast ds.id_product to integer in case it was stored as text
     // Obtener ventas reales con descuentos proporcionales
     const stmt = db.db.prepare(`
@@ -592,11 +624,11 @@ ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
       FROM detail_sales ds 
       JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) 
       JOIN sales s ON s.id = ds.id_sale 
-      WHERE s.date_sale BETWEEN ? AND ? 
+      WHERE date(substr(s.date_sale, 1, 10)) BETWEEN date(?) AND date(?) 
       GROUP BY p.id, p.name, p.price 
       ORDER BY quantitySold DESC
     `);
-    const rows = stmt.all(from, to);
+    const rows = stmt.all(fromDate, toDate);
     console.log('📊 [reports:salesByProduct] from=', from, 'to=', to, 'rows=', Array.isArray(rows) ? rows.length : 0, 'sample=', (rows && rows[0]) ? rows[0] : null);
     return { success: true, rows };
   } catch (error) {
@@ -607,6 +639,10 @@ ipcMain.handle('reports:salesByProduct', (event, { from, to }) => {
 
 ipcMain.handle('reports:salesByCategory', (event, { from, to }) => {
   try {
+    // Extraer solo YYYY-MM-DD de las fechas
+    const fromDate = from.slice(0, 10);
+    const toDate = to.slice(0, 10);
+    
     // cast ds.id_product to integer to match products.id and coalesce numeric fields
     // Obtener ventas por categoría con valores reales
     const stmt = db.db.prepare(`
@@ -634,11 +670,11 @@ ipcMain.handle('reports:salesByCategory', (event, { from, to }) => {
       JOIN products p ON p.id = CAST(ds.id_product AS INTEGER) 
       LEFT JOIN categories c ON p.category_id = c.id 
       JOIN sales s ON s.id = ds.id_sale 
-      WHERE s.date_sale BETWEEN ? AND ? 
+      WHERE date(substr(s.date_sale, 1, 10)) BETWEEN date(?) AND date(?) 
       GROUP BY c.id, c.name 
       ORDER BY totalSales DESC
     `);
-    const rows = stmt.all(from, to);
+    const rows = stmt.all(fromDate, toDate);
     console.log('📊 [reports:salesByCategory] from=', from, 'to=', to, 'rows=', Array.isArray(rows) ? rows.length : 0, 'sample=', (rows && rows[0]) ? rows[0] : null);
     return { success: true, rows };
   } catch (error) {
@@ -649,9 +685,11 @@ ipcMain.handle('reports:salesByCategory', (event, { from, to }) => {
 
 ipcMain.handle('reports:taxSummary', (event, { from, to }) => {
   try {
+    const fromDate = from.slice(0, 10);
+    const toDate = to.slice(0, 10);
     const ivaRate = (invoicingConfig && invoicingConfig.ivaRate) ? invoicingConfig.ivaRate : 0.19;
-    const stmt = db.db.prepare('SELECT SUM(total_sale) as totalGross FROM sales WHERE date_sale BETWEEN ? AND ?');
-    const row = stmt.get(from, to) || { totalGross: 0 };
+    const stmt = db.db.prepare('SELECT SUM(total_sale) as totalGross FROM sales WHERE date(substr(date_sale, 1, 10)) BETWEEN date(?) AND date(?)');
+    const row = stmt.get(fromDate, toDate) || { totalGross: 0 };
     const taxes = (row.totalGross || 0) * ivaRate / (1 + ivaRate);
     return { success: true, totalGross: row.totalGross || 0, taxes };
   } catch (error) {
@@ -662,8 +700,10 @@ ipcMain.handle('reports:taxSummary', (event, { from, to }) => {
 
 ipcMain.handle('reports:frequency', (event, { from, to }) => {
   try {
-    const stmt = db.db.prepare('SELECT COUNT(*) as countSales FROM sales WHERE date_sale BETWEEN ? AND ?');
-    const r = stmt.get(from, to) || { countSales: 0 };
+    const fromDate = from.slice(0, 10);
+    const toDate = to.slice(0, 10);
+    const stmt = db.db.prepare('SELECT COUNT(*) as countSales FROM sales WHERE date(substr(date_sale, 1, 10)) BETWEEN date(?) AND date(?)');
+    const r = stmt.get(fromDate, toDate) || { countSales: 0 };
     const count = r.countSales || 0;
     const df = new Date(from);
     const dt = new Date(to);
@@ -1382,5 +1422,18 @@ ipcMain.handle('system:resetAngular', async () => {
       success: false, 
       error: 'Error en reset: ' + (error.message || error) 
     };
+  }
+});
+
+// Handler para obtener la ruta de la base de datos
+ipcMain.handle('db:getPath', async () => {
+  try {
+    const { getDbPath } = require('./db.js');
+    const dbPath = getDbPath();
+    console.log('📁 Ruta de la base de datos solicitada:', dbPath);
+    return { success: true, path: dbPath };
+  } catch (error) {
+    console.error('❌ Error obteniendo ruta de BD:', error);
+    return { success: false, error: error.message || String(error) };
   }
 });
