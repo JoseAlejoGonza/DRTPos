@@ -15,10 +15,12 @@ import { AddProductsComponent } from '../add-products/add-products.component';
 })
 export class ProductsComponent implements OnInit {
   products: any[] = [];
+  filteredProducts: any[] = [];
   categories: any[] = [];
   formVisible: boolean = false;
   selectedProduct: any = null;
   titleModal: string = '';
+  searchTerm: string = '';
 
   constructor(
     private electronService: ElectronService,
@@ -28,7 +30,6 @@ export class ProductsComponent implements OnInit {
   async ngOnInit() {
     await this.loadCategories();
     await this.loadProducts();
-    
     // Suscribirse al evento de abrir modal de agregar producto
     this.barcodeService.addProductModal$.subscribe(code => {
       console.log('🔔 ProductsComponent recibió código para modal:', code);
@@ -38,6 +39,17 @@ export class ProductsComponent implements OnInit {
     });
   }
 
+  onSearchChange() {
+    const term = this.searchTerm.trim().toLowerCase();
+    if (term.length < 3) {
+      this.filteredProducts = [...this.products];
+    } else {
+      this.filteredProducts = this.products.filter(p =>
+        p.name && p.name.toLowerCase().includes(term)
+      );
+    }
+  }
+
   async loadCategories() {
     this.categories = await this.electronService.getCategories();
   }
@@ -45,6 +57,7 @@ export class ProductsComponent implements OnInit {
   async loadProducts() {
     this.electronService.getProducts().then((products: any) => {
       this.products = products;
+      this.onSearchChange();
       console.log(this.products);
     });
   }

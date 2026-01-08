@@ -13,6 +13,33 @@
 
   <!-- Listado -->
   <h3 class="text-primary text-left fw-bold fs-3">Productos Guardados</h3>
+  <!-- Buscador de productos -->
+  <div class="search-container mb-3">
+    <div class="input-group">
+      <span class="input-group-text">
+        <i class="fas fa-search"></i>
+      </span>
+      <input type="text" 
+             class="form-control" 
+             placeholder="Buscar productos por nombre (mín. 3 caracteres)..."
+             [(ngModel)]="searchTerm" 
+             (input)="onSearchChange()"
+             #searchInput>
+      <button class="btn btn-outline-secondary" 
+              type="button" 
+              (click)="searchTerm = ''; onSearchChange(); searchInput.focus()" 
+              *ngIf="searchTerm.length > 0"
+              title="Limpiar búsqueda">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <small class="text-muted" *ngIf="searchTerm.length > 0 && searchTerm.length < 3">
+      Escribe al menos 3 caracteres para filtrar
+    </small>
+    <small class="text-success" *ngIf="searchTerm.length >= 3">
+      Mostrando {{ filteredProducts.length }} de {{ products.length }} productos
+    </small>
+  </div>
   <button class="btn btn-secondary" (click)="loadProducts()">Actualizar tabla</button>
   <table class="table table-striped table-bordered align-middle mt-3">
     <thead class="table-secondary">
@@ -26,7 +53,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let p of products">
+      <tr *ngFor="let p of filteredProducts">
         <td>{{ p.name | uppercase}}</td>
         <td class="text-center">{{ p.price | currency:'$':'symbol':'1.0-0' }}</td>
         <td class="text-center">{{ p.stock }}</td>

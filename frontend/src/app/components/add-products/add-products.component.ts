@@ -174,7 +174,7 @@ export class AddProductsComponent implements OnInit {
   }
 
   async saveProduct() {
-    if (!this.product.name || this.product.price <= 0 || !this.product.cost_price || this.product.cost_price <= 0 || this.product.stock < 1 || !this.product.category_id || !this.product.color) {
+    if (!this.product.name || this.product.price <= 0 || !this.product.cost_price || this.product.cost_price <= 0 || this.product.stock == null || this.product.stock < 0 || !this.product.category_id || !this.product.color) {
       this.notificationService.warning('Campos Obligatorios', 'Nombre, precio de venta, costo real, cantidad, color y categoría son obligatorios');
       return;
     }
